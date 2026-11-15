@@ -1,0 +1,15 @@
+{
+  "name": "hhk-cap01-workspace",
+  "private": true,
+  "version": "0.2.0",
+  "description": "Flutter-first HHK repository with a Node-only Prisma license backend workspace",
+  "packageManager": "npm@11.6.2",
+  "workspaces": [
+    "backend-prisma"
+  ],
+  "scripts": {
+    "backend:typecheck": "npm --workspace backend-prisma run typecheck",
+    "backend:test": "npm --workspace backend-prisma run test",
+    "backend:build": "npm --workspace backend-prisma run build"
+  }
+}
