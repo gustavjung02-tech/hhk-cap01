@@ -40,10 +40,9 @@ class OfflineLicenseManager {
   final Ed25519 algorithm;
   final String signingPublicKey;
   OfflineLicenseManager({LicenseVault? vault, Ed25519? algorithm,
-    String signingPublicKey = stagingPublicKey})
+    this.signingPublicKey = stagingPublicKey})
       : vault = vault ?? PlatformLicenseVault(),
-        algorithm = algorithm ?? Ed25519(),
-        signingPublicKey = signingPublicKey;
+        algorithm = algorithm ?? Ed25519();
 
   Future<SimpleKeyPairData> _device() async {
     final saved = await vault.read(_deviceKey);
@@ -52,7 +51,9 @@ class OfflineLicenseManager {
         final raw = jsonDecode(saved) as Map<String, dynamic>;
         final privateBytes = base64Url.decode(base64Url.normalize(raw['private'] as String));
         final publicBytes = base64Url.decode(base64Url.normalize(raw['public'] as String));
-        if (privateBytes.length != 32 || publicBytes.length != 32) throw const FormatException();
+        if (privateBytes.length != 32 || publicBytes.length != 32) {
+          throw const FormatException();
+        }
         return SimpleKeyPairData(privateBytes,
             publicKey: SimplePublicKey(publicBytes, type: KeyPairType.ed25519),
             type: KeyPairType.ed25519);
@@ -121,15 +122,23 @@ class OfflineLicenseManager {
   }
 
   Future<bool> gradeAllowed(int grade) async {
-    if (grade < 1 || grade > 5) return false;
+    if (grade < 1 || grade > 5) {
+      return false;
+    }
     final rawIds = await vault.read(_leaseIds);
-    if (rawIds == null) return false;
+    if (rawIds == null) {
+      return false;
+    }
     try {
       final ids = (jsonDecode(rawIds) as List).cast<String>();
       for (final id in ids) {
         final lease = await vault.read('hhk:lease:$id');
-        if (lease == null) continue;
-        if (await verifyLease(lease, licenseId: id, grade: grade)) return true;
+        if (lease == null) {
+          continue;
+        }
+        if (await verifyLease(lease, licenseId: id, grade: grade)) {
+          return true;
+        }
       }
     } catch (_) {
       return false;
@@ -145,11 +154,15 @@ class OfflineLicenseManager {
   }) async {
     try {
       final parts = lease.split('.');
-      if (parts.length != 2) return false;
+      if (parts.length != 2) {
+        return false;
+      }
       final payloadEncoded = parts[0], signatureEncoded = parts[1];
       final payloadBytes = base64Url.decode(base64Url.normalize(payloadEncoded));
       final signature = base64Url.decode(base64Url.normalize(signatureEncoded));
-      if (signature.length != 64) return false;
+      if (signature.length != 64) {
+        return false;
+      }
       final payload = jsonDecode(utf8.decode(payloadBytes)) as Map<String, dynamic>;
       if (payload['kind'] != 'hhk-offline-license-v1' ||
           payload['licenseId'] != licenseId) return false;
@@ -167,12 +180,18 @@ class OfflineLicenseManager {
       final device = await _device();
       final expected = await Sha256().hash(device.publicKey.bytes);
       final hex = expected.bytes.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
-      if (payload['deviceKeyHash'] != hex) return false;
+      if (payload['deviceKeyHash'] != hex) {
+        return false;
+      }
 
       final spki = base64Url.decode(base64Url.normalize(pinnedPublicKey ?? signingPublicKey));
-      if (spki.length != _spkiPrefix.length + 32) return false;
+      if (spki.length != _spkiPrefix.length + 32) {
+        return false;
+      }
       for (var i = 0; i < _spkiPrefix.length; i++) {
-        if (spki[i] != _spkiPrefix[i]) return false;
+        if (spki[i] != _spkiPrefix[i]) {
+          return false;
+        }
       }
       final pub = SimplePublicKey(spki.sublist(_spkiPrefix.length), type:KeyPairType.ed25519);
       return await algorithm.verify(
