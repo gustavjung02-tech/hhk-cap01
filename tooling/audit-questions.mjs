@@ -52,6 +52,48 @@ const validAnswer = (q) => {
       return false;
     }
   }
+  if (q.questionType === 'matching') {
+    try {
+      const o = JSON.parse(q.optionsJson ?? '');
+      if (!o || Array.isArray(o) ||
+          !Array.isArray(o.left) || !Array.isArray(o.right) ||
+          o.left.length < 2 || o.left.length > 12 ||
+          o.left.length !== o.right.length) return false;
+      for (const side of [o.left, o.right]) {
+        if (side.some(x => typeof x !== 'string' || !normalize(x)) ||
+            new Set(side.map(normalize)).size !== side.length) return false;
+      }
+      const tokens = String(q.correctAnswer ?? '').split(',');
+      if (tokens.length !== o.left.length) return false;
+      const seenL = new Set(), seenR = new Set();
+      for (const token of tokens) {
+        const match = /^([0-9]+)-([0-9]+)$/.exec(token.trim());
+        if (!match) return false;
+        const i = Number(match[1]), j = Number(match[2]);
+        if (i >= o.left.length || j >= o.right.length ||
+            seenL.has(i) || seenR.has(j)) return false;
+        seenL.add(i); seenR.add(j);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  if (q.questionType === 'ordering') {
+    try {
+      const o = JSON.parse(q.optionsJson ?? '');
+      if (!Array.isArray(o) || o.length < 2 || o.length > 12 ||
+          o.some(x => typeof x !== 'string' || !normalize(x) || x.includes(',')) ||
+          new Set(o.map(normalize)).size !== o.length) return false;
+      const expected = String(q.correctAnswer ?? '').split(',').map(normalize);
+      return expected.length === o.length &&
+          expected.every(Boolean) &&
+          new Set(expected).size === expected.length &&
+          expected.every(x => o.map(normalize).includes(x));
+    } catch {
+      return false;
+    }
+  }
   return false;
 };
 

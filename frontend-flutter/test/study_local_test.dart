@@ -84,6 +84,47 @@ void main() {
     expect(QuizEvaluator.canGrade({...multi, 'correctAnswer': 'Hi,Hi'}), isFalse);
   });
 
+  test('matching: valid bijection, reject missing right column and duplicate assignment', () {
+    final q = {
+      'questionType': 'matching',
+      'optionsJson': jsonEncode({
+        'left': ['Hello', 'Bye bye', 'Hi'],
+        'right': ['Xin chào', 'Tạm biệt', 'Chào']
+      }),
+      'correctAnswer': '0-0,1-1,2-2'
+    };
+    expect(QuizEvaluator.canGrade(q), isTrue);
+    expect(QuizEvaluator.matchingQuestion(q)!.left.length, 3);
+    expect(QuizEvaluator.correctMatching(q, {0: 0, 1: 1, 2: 2}), isTrue);
+    expect(QuizEvaluator.correctMatching(q, {0: 0, 1: 2, 2: 1}), isFalse);
+    expect(QuizEvaluator.correctMatching(q, {0: 0, 1: 1}), isFalse);
+    expect(QuizEvaluator.canGrade({
+      ...q,
+      'optionsJson': jsonEncode(['Hello', 'Bye bye', 'Hi'])
+    }), isFalse);
+    expect(QuizEvaluator.canGrade({...q, 'correctAnswer': '0-0,1-0,2-2'}), isFalse);
+    expect(QuizEvaluator.canGrade({...q, 'correctAnswer': '0-0,1-1,3-2'}), isFalse);
+  });
+
+  test('ordering: strict permutation, rejects ambiguous source commas', () {
+    final q = {
+      'questionType': 'ordering',
+      'optionsJson': jsonEncode(['a', 'is', 'book', 'This']),
+      'correctAnswer': 'This,is,a,book'
+    };
+    expect(QuizEvaluator.canGrade(q), isTrue);
+    expect(QuizEvaluator.correctOrdering(q, ['This','is','a','book']), isTrue);
+    expect(QuizEvaluator.correctOrdering(q, ['This','a','is','book']), isFalse);
+    expect(QuizEvaluator.correctOrdering(q, ['This','is','book']), isFalse);
+    expect(QuizEvaluator.correct(q, 'This,is,a,book'), isFalse);
+    expect(QuizEvaluator.canGrade({
+      ...q,
+      'optionsJson': jsonEncode(['This,', 'is', 'a', 'book'])
+    }), isFalse);
+    expect(QuizEvaluator.canGrade({...q, 'correctAnswer': 'This,is,a,cat'}), isFalse);
+    expect(QuizEvaluator.canGrade({...q, 'correctAnswer': 'This,is,a,a'}), isFalse);
+  });
+
   test('3 profiles / 2 grades, restart, XP, retry and review isolation', () async {
     final store = InMemoryStore();
     await store.open();

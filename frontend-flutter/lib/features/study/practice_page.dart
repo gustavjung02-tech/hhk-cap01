@@ -33,15 +33,40 @@ class _PracticePageState extends State<PracticePage> {
   int correctCount = 0;
   String? selected;
   final Set<String> selectedMultiple = <String>{};
+  final Map<int, int> selectedMatching = <int, int>{};
+  final List<String> selectedOrdering = <String>[];
   bool submitted = false;
   bool saving = false;
   LessonProgress? savedProgress;
   String? storageError;
 
-  bool _answerCorrect(Map<String, dynamic> question) =>
-      question['questionType'] == 'multi_choice'
-          ? QuizEvaluator.correctMultiple(question, selectedMultiple)
-          : QuizEvaluator.correct(question, selected ?? '');
+  bool _answerCorrect(Map<String, dynamic> question) {
+    switch (question['questionType']) {
+      case 'multi_choice':
+        return QuizEvaluator.correctMultiple(question, selectedMultiple);
+      case 'matching':
+        return QuizEvaluator.correctMatching(question, selectedMatching);
+      case 'ordering':
+        return QuizEvaluator.correctOrdering(question, selectedOrdering);
+      default:
+        return QuizEvaluator.correct(question, selected ?? '');
+    }
+  }
+
+  bool _answerCompleted(String? kind, Map<String, dynamic> question) {
+    switch (kind) {
+      case 'multi_choice':
+        return selectedMultiple.isNotEmpty;
+      case 'matching':
+        final parsed = QuizEvaluator.matchingQuestion(question);
+        return parsed != null && selectedMatching.length == parsed.left.length;
+      case 'ordering':
+        final parsed = QuizEvaluator.orderingQuestion(question);
+        return parsed != null && selectedOrdering.length == parsed.options.length;
+      default:
+        return selected != null && selected!.trim().isNotEmpty;
+    }
+  }
 
   Future<void> _finish() async {
     if (saving || savedProgress != null) return;
@@ -101,6 +126,17 @@ class _PracticePageState extends State<PracticePage> {
 
     final question = widget.questions[index];
     final kind = question['questionType']?.toString();
+    final matching = kind == 'matching' ? QuizEvaluator.matchingQuestion(question) : null;
+    final ordering = kind == 'ordering' ? QuizEvaluator.orderingQuestion(question) : null;
+    final orderingChoices = ordering == null
+        ? <String>[]
+        : (List<String>.from(ordering.options)
+          ..shuffle(Random(((question['id'] as num?)?.toInt() ?? index + 1) ^ widget.lessonId)));
+    if (ordering != null &&
+        List.generate(orderingChoices.length, (i) => orderingChoices[i].trim().toLowerCase())
+            .join('|') == ordering.expected.join('|')) {
+      orderingChoices.reverse();
+    }
     List<String> options = [];
     if (kind == 'single_choice' || kind == 'multi_choice') {
       options = QuizEvaluator.options(question);
@@ -123,6 +159,64 @@ class _PracticePageState extends State<PracticePage> {
                 style: Theme.of(context).textTheme.titleLarge),
           ),
         ),
+        if (kind == 'matching' && matching != null) ...[
+          const Text('Chọn một vế phù hợp cho mỗi dòng'),
+          for (var i = 0; i < matching.left.length; i++)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(matching.left[i], style: Theme.of(context).textTheme.titleMedium),
+                    DropdownButton<int>(
+                      isExpanded: true,
+                      value: selectedMatching[i],
+                      hint: const Text('Chọn đáp án để nối'),
+                      items: [
+                        for (var j = 0; j < matching.right.length; j++)
+                          DropdownMenuItem<int>(
+                            value: j,
+                            child: Text(matching.right[j],
+                                overflow: TextOverflow.ellipsis),
+                          )
+                      ],
+                      onChanged: submitted ? null : (value) {
+                        if (value == null) return;
+                        setState(() {
+                          selectedMatching.removeWhere(
+                              (key, existing) => key != i && existing == value);
+                          selectedMatching[i] = value;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+        if (kind == 'ordering' && ordering != null) ...[
+          const Text('Chạm các mục theo thứ tự đúng. Chạm lại để bỏ chọn.'),
+          for (final option in orderingChoices)
+            Card(
+              child: ListTile(
+                leading: CircleAvatar(
+                  child: Text(selectedOrdering.contains(option)
+                      ? (selectedOrdering.indexOf(option) + 1).toString()
+                      : '•'),
+                ),
+                title: Text(option),
+                selected: selectedOrdering.contains(option),
+                onTap: submitted ? null : () => setState(() {
+                  if (selectedOrdering.contains(option)) {
+                    selectedOrdering.remove(option);
+                  } else {
+                    selectedOrdering.add(option);
+                  }
+                }),
+              ),
+            ),
+        ],
         if (kind == 'multi_choice')
           const Text('Chọn tất cả đáp án đúng'),
         if (options.isNotEmpty)
@@ -153,7 +247,7 @@ class _PracticePageState extends State<PracticePage> {
               ),
             );
           })
-        else
+        else if (kind != 'matching' && kind != 'ordering')
           TextField(
             key: ValueKey('answer-$index'),
             enabled: !submitted,
@@ -193,16 +287,14 @@ class _PracticePageState extends State<PracticePage> {
                       index++;
                       selected = null;
                       selectedMultiple.clear();
+                      selectedMatching.clear();
+                      selectedOrdering.clear();
                       submitted = false;
                     });
                   }
                 }
               : () {
-                  if (kind == 'multi_choice'
-                      ? selectedMultiple.isEmpty
-                      : selected == null || selected!.trim().isEmpty) {
-                    return;
-                  }
+                  if (!_answerCompleted(kind, question)) return;
                   if (_answerCorrect(question)) {
                     correctCount++;
                   } else if (question['id'] is num) {
