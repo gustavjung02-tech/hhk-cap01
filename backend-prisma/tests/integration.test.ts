@@ -63,6 +63,9 @@ if (!url) {
     const sql=readFileSync(new URL('../../db-prisma/migrations/0001_license_only.sql',
                                    import.meta.url),'utf8');
     await pool.query(sql);
+    const quotaSql=readFileSync(new URL('../../db-prisma/migrations/0002_device_limit.sql',
+                                       import.meta.url),'utf8');
+    await pool.query(quotaSql);
   });
   beforeEach(async () => {
     await pool.query('TRUNCATE TABLE license_audit,device_activations,licenses,claim_tokens,reward_campaigns,print_batches RESTART IDENTITY CASCADE');
@@ -142,6 +145,24 @@ if (!url) {
     assert.deepEqual(attempts.map(x=>x.status).sort(),[200,409]);
     const count=await pool.query('SELECT count(*)::int AS n FROM device_activations WHERE active=true');
     assert.equal(count.rows[0].n,1);
+  });
+
+  test('database rejects direct quota bypass and unsafe limit reduction',async () => {
+    const [qr]=await batch(await campaign());
+    const claim=await redeem(qr);
+    const key=claim.body.licenseKey as string;
+    assert.equal((await json('/api/v1/licenses/activate',device(key,'activate'))).status,200);
+    await assert.rejects(
+      pool.query(
+        'INSERT INTO device_activations (id,license_id,device_public_key_hash) VALUES (gen_random_uuid(),$1,$2)',
+        [claim.body.licenseId,randomBytes(32)]
+      ),
+      (err:any) => err.code === '23514'
+    );
+    const active=await pool.query('SELECT count(*)::int AS n FROM device_activations WHERE active=true');
+    assert.equal(active.rows[0].n,1);
+    const registry=await pool.query("SELECT version FROM hhk_schema_migrations ORDER BY version");
+    assert.deepEqual(registry.rows.map(row => row.version),['0001','0002']);
   });
 
   test('authorized device transfer and license revocation',async () => {
