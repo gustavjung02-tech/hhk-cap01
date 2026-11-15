@@ -10,17 +10,24 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "compute:typecheck": "tsc -p deploy/tsconfig.json --noEmit",
+    "compute:build": "bun build deploy/compute-server.ts --target=bun --outfile deploy/dist/compute-server.mjs"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.0",
     "hono": "^4.11.0",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "zod": "4.1.13"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
     "@types/pg": "^8.15.5",
     "tsx": "^4.20.6",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "@prisma/composer": "0.36.0",
+    "@prisma/composer-prisma-cloud": "0.36.0",
+    "prisma": "8.0.0-rc.33",
+    "@types/bun": "^1.3.0"
   }
 }

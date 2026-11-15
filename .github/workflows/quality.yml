@@ -52,6 +52,11 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - uses: oven-sh/setup-bun@v2
+      - run: npm run compute:typecheck
+      - run: npm run compute:build
+      - name: Check Compute bundle was built
+        run: test -s deploy/dist/compute-server.mjs
   flutter:
     runs-on: ubuntu-latest
     defaults:
