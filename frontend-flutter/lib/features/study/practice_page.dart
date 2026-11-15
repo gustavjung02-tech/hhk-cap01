@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:material_ui/material_ui.dart';
 import '../../data/study_ledger.dart';
 import 'quiz_evaluator.dart';
@@ -9,6 +10,8 @@ class PracticePage extends StatefulWidget {
   final int grade;
   final int lessonId;
   final StudyLedger ledger;
+  final String profileId;
+  final String subjectCode;
   const PracticePage({
     super.key,
     required this.questions,
@@ -16,12 +19,17 @@ class PracticePage extends StatefulWidget {
     required this.grade,
     required this.lessonId,
     required this.ledger,
+    required this.profileId,
+    required this.subjectCode,
   });
   @override
   State<PracticePage> createState() => _PracticePageState();
 }
 
 class _PracticePageState extends State<PracticePage> {
+  final String attemptId =
+      'attempt-${DateTime.now().microsecondsSinceEpoch}-${Random.secure().nextInt(1 << 30)}';
+  final List<int> wrongQuestionIds = [];
   int index = 0;
   int correctCount = 0;
   String? selected;
@@ -38,6 +46,10 @@ class _PracticePageState extends State<PracticePage> {
     });
     try {
       final result = await widget.ledger.recordResult(
+        profileId: widget.profileId,
+        subjectCode: widget.subjectCode,
+        attemptId: attemptId,
+        wrongQuestionIds: wrongQuestionIds,
         grade: widget.grade,
         lessonId: widget.lessonId,
         correct: correctCount,
@@ -175,6 +187,8 @@ class _PracticePageState extends State<PracticePage> {
                   }
                   if (QuizEvaluator.correct(question, selected!)) {
                     correctCount++;
+                  } else if (question['id'] is num) {
+                    wrongQuestionIds.add((question['id'] as num).toInt());
                   }
                   setState(() => submitted = true);
                 },
