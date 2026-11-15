@@ -1,12 +1,17 @@
 import { Hono } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import {
-  ApiFault, LicenseService, isAdmin, postgresError, serviceFromEnv
+  ApiFault, LicenseService, postgresError, serviceFromEnv
 } from './license.js';
 
 type Body = Record<string, unknown>;
 
 export function createApp(service?: LicenseService) {
   const app = new Hono();
+  app.use('/api/v1/*', bodyLimit({
+    maxSize: 16384,
+    onError: c => c.json({ok: false, code: 'BODY_TOO_LARGE'}, 413)
+  }));
 
   app.get('/api/v1/health', async c => {
     if (!service) {
@@ -46,7 +51,7 @@ export function createApp(service?: LicenseService) {
     app.post(path, async c => {
       if (!service) return c.json({ok: false, code: 'NOT_CONFIGURED'}, 503);
       if (privileged.has(path) &&
-          !isAdmin(c.req.header('authorization'), process.env.ADMIN_API_KEY ?? '')) {
+          !service.authorized(c.req.header('authorization'))) {
         return c.json({ok: false, code: 'UNAUTHORIZED'}, 401);
       }
       const contentLength = Number(c.req.header('content-length') ?? '0');

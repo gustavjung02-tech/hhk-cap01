@@ -109,6 +109,10 @@ export function isAdmin(header: string | undefined, expected: string): boolean {
 export class LicenseService {
   constructor(private readonly config: LicenseConfig) {}
 
+  authorized(header: string | undefined) {
+    return isAdmin(header, this.config.adminKey);
+  }
+
   async ping() {
     await this.config.pool.query('SELECT 1');
   }
