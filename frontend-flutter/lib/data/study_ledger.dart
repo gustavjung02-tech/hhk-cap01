@@ -249,7 +249,27 @@ class StudyLedger {
   Future<void> _migrateAllLegacy() async {
     final keys = await storage.keys('progress:v1:');
     final pending = <String, LessonProgress>{};
-    final pattern = RegExp(r'^progress:v1:([1-5]):([1-9][0-9]*)
+    final pattern = RegExp(r'^progress:v1:([1-5]):([1-9][0-9]*)$');
+    for (final key in keys) {
+      final match = pattern.firstMatch(key);
+      if (match == null) continue;
+      final raw = await storage.read(key);
+      if (raw == null) continue;
+      final grade = int.parse(match.group(1)!);
+      final lessonId = int.parse(match.group(2)!);
+      pending[_key(defaultProfileId, grade, lessonId)] =
+          _legacyProgress(raw, grade, lessonId);
+    }
+    if (pending.isEmpty) return;
+    await _mutate<bool>((state) {
+      final progress = state['progress'] as Map;
+      for (final entry in pending.entries) {
+        progress.putIfAbsent(entry.key, () => entry.value.toJson());
+      }
+      return true;
+    });
+  }
+
   /// Legacy values are not modified, so failures never destroy v1 data.
   Future<void> _migrateLegacy(int grade, int lessonId) async {
     final key = _key(defaultProfileId, grade, lessonId);
