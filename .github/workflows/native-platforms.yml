@@ -25,6 +25,7 @@ jobs:
         run: |
           flutter create --project-name hhk_cap01 --platforms=android,ios,web .
           flutter pub get
+          dart run flutter_launcher_icons
           dart format lib test
           flutter analyze
           flutter test

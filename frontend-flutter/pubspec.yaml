@@ -15,7 +15,15 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.4
 flutter:
   uses-material-design: true
   assets:
     - assets/content/grades/
+
+flutter_launcher_icons:
+  web:
+    generate: true
+    image_path: "assets/brand/icon.png"
+    background_color: "#FFFBF5"
+    theme_color: "#FF7900"

@@ -10,6 +10,7 @@ if(manifest.display!=='standalone'||manifest.lang!=='vi'||manifest.start_url!=='
 if(!html.includes('apple-mobile-web-app-capable')||!html.includes('/hhk-sw.js'))throw Error('iOS PWA not registered');
 if(!sw.includes('self.addEventListener(\'fetch\'')||!sw.includes('self.addEventListener(\'install\''))throw Error('Offline service worker missing');
 if(!config.rewrites.some(x=>x.destination==='/index.html'))throw Error('SPA fallback missing');
+if(config.git?.deploymentEnabled!==false)throw Error('Vercel auto-deploy not disabled');
 for(const name of ['main.dart.js','flutter_bootstrap.js','icons/Icon-192.png','icons/Icon-512.png']){
  if(!existsSync(dir+'/'+name))throw Error('Missing Flutter build asset '+name);
 }

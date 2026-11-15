@@ -42,6 +42,8 @@ jobs:
       - name: Generate native platform scaffolds through Flutter only
         run: flutter create --project-name hhk_cap01 --platforms=android,ios,web .
       - run: flutter pub get
+      - name: Generate branded HHK iPhone home-screen icons
+        run: dart run flutter_launcher_icons
       - run: dart format lib test
       - run: flutter analyze
       - run: flutter test

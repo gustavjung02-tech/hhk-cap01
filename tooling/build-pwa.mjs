@@ -83,6 +83,7 @@ self.addEventListener('fetch', event => {
 writeFileSync(join(dir,'hhk-sw.js'), sw.trimStart());
 writeFileSync(join(dir,'vercel.json'),JSON.stringify({
   version:2,
+  git:{deploymentEnabled:false},
   cleanUrls:false,
   trailingSlash:false,
   headers:[
