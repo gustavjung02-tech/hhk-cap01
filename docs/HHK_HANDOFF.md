@@ -47,3 +47,10 @@
 
 ## Tiêu chuẩn báo cáo cuối mỗi lượt
 Báo ngắn: (a) issue #; (b) commit/PR, nội dung sửa; (c) test + CI và kết quả; (d) deployment/migration nếu có, link; (e) blocker + task tiếp. Dừng ở test đỏ, không deploy/migrate production.
+
+## Checkpoint đang thực thi (15/11/2026)
+- Trên staging: commit `c55e5e9` — transactional study ledger schema v2; `2021eca` — profile UI + strict quiz guard.
+- #3 chưa nghiệm thu đủ: còn kiểm thử SQLite thiết bị, Safari IndexedDB/reload và export/restore thực tế.
+- #4 chưa nghiệm thu đủ: cần kiểm kê 100% questionType và rà soát 1.600 bản ghi quarantine.
+- #6 chưa được mở khóa: Prisma plugin xác nhận workspace gus-02 có 0 database và 0 Compute app; không dùng API tạo DB vì tạo project mới.
+- Không tự động deploy hay chạy migration production. CI của commit mới phải xác minh qua PR trước khi merge.

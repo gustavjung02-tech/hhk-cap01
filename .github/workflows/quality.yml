@@ -1,7 +1,7 @@
 name: Flutter / content / license CI
 on:
   push:
-    branches: [main]
+    branches: [main, staging]
   pull_request:
 permissions:
   contents: read
@@ -15,8 +15,31 @@ jobs:
           node-version: '22'
       - run: node tooling/check-clean.mjs
       - run: node tooling/validate-export.mjs
+      - run: node tooling/audit-questions.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hhk-question-audit
+          path: question-audit.json
+          retention-days: 14
+          if-no-files-found: error
   prisma-backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: hhk
+          POSTGRES_PASSWORD: ci_only_password
+          POSTGRES_DB: hhk
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hhk -d hhk"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgresql://hhk:ci_only_password@127.0.0.1:5432/hhk
     defaults:
       run:
         working-directory: backend-prisma
@@ -29,6 +52,11 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - uses: oven-sh/setup-bun@v2
+      - run: npm run compute:typecheck
+      - run: npm run compute:build
+      - name: Check Compute bundle was built
+        run: test -s deploy/dist/compute-server.mjs
   flutter:
     runs-on: ubuntu-latest
     defaults:
@@ -62,3 +90,91 @@ jobs:
           path: frontend-flutter/build/web/
           retention-days: 14
           if-no-files-found: error
+  packaged-pwa:
+    needs: flutter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Download exact release artifact after upload job completes
+        uses: actions/download-artifact@v4
+        with:
+          name: hhk-flutter-web-pwa
+          path: ${{ runner.temp }}/hhk-pwa-artifact-check
+      - name: Verify packaged PWA assets (not only build directory)
+        run: node tooling/verify-pwa.mjs "$RUNNER_TEMP/hhk-pwa-artifact-check"
+
+  indexeddb-chrome:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend-flutter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate Flutter Web scaffolding
+        run: flutter create --project-name hhk_cap01 --platforms=web .
+      - run: flutter pub get
+      - name: Detect browser
+        run: echo "CHROME_EXECUTABLE=$(command -v google-chrome || command -v chromium || command -v chromium-browser)" >> "$GITHUB_ENV"
+      - name: Check integration test formatting
+        run: dart format test_browser
+      - name: Stage browser-only test inside Flutter test root
+        run: cp test_browser/indexeddb_test.dart test/indexeddb_web_test.dart
+      - name: Exercise actual IndexedDB in headless Chrome
+        run: flutter test --platform chrome test/indexeddb_web_test.dart
+
+  prisma-compute-staging:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
+    needs: [clean-content, prisma-backend, flutter, packaged-pwa, indexeddb-chrome]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: prisma-compute-staging
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@v2
+      - name: Seed Ed25519 key into Prisma staging only if missing
+        shell: bash
+        run: |
+          set -euo pipefail
+          GENERATED_LEASE_KEY="$(openssl genpkey -algorithm ED25519 | base64 -w0)"
+          echo "::add-mask::$GENERATED_LEASE_KEY"
+          echo "LEASE_SIGNING_PRIVATE_KEY_PEM_BASE64=$GENERATED_LEASE_KEY" >> "$GITHUB_ENV"
+      - name: Deploy Compute staging with GitHub OIDC
+        id: prisma
+        uses: prisma/cloud-deploy-action@v1
+        with:
+          working-directory: .
+          module: backend-prisma/deploy/module.ts
+          environment: staging
+          install-command: npm install --no-audit --no-fund
+          build-command: npm --workspace backend-prisma run compute:build
+      - name: Require an actual staging URL
+        if: steps.prisma.outputs.outcome == 'succeeded'
+        env:
+          SERVICE_URL: ${{ steps.prisma.outputs.url }}
+        run: |
+          set -euo pipefail
+          test -n "$SERVICE_URL"
+          curl --fail --silent --show-error --max-time 20 "$SERVICE_URL/api/v1/health" |
+            jq -e '.ok == true and .status == "ready"'
+          curl --fail --silent --show-error --max-time 20 "$SERVICE_URL/api/v1/public-key" |
+            jq -e '.keyType == "ed25519-spki-der-base64url" and (.publicKey | length > 20)'
+      - name: Reject skipped or unsuccessful deployments
+        if: steps.prisma.outputs.outcome != 'succeeded'
+        run: |
+          echo "Prisma staging deploy did not succeed (inspect action summary)." >&2
+          exit 1
+

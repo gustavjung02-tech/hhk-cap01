@@ -8,7 +8,7 @@ const dir = process.argv[2] || 'frontend-flutter/build/web';
 if (!existsSync(join(dir, 'index.html')) || !existsSync(join(dir,'main.dart.js'))) {
   throw new Error('Flutter build/web not ready. Build Flutter first.');
 }
-const exclude = new Set(['hhk-sw.js', 'vercel.json', 'flutter_service_worker.js', '.DS_Store']);
+const exclude = new Set(['hhk-sw.js', 'vercel.json', 'flutter_service_worker.js', '.DS_Store', '.last_build_id']);
 const files = [];
 function walk(directory) {
   for (const item of readdirSync(directory, { withFileTypes: true })) {
@@ -81,18 +81,13 @@ self.addEventListener('fetch', event => {
 });
 `;
 writeFileSync(join(dir,'hhk-sw.js'), sw.trimStart());
-writeFileSync(join(dir,'vercel.json'),JSON.stringify({
-  version:2,
-  git:{deploymentEnabled:false},
-  cleanUrls:false,
-  trailingSlash:false,
-  headers:[
-    {source:"/hhk-sw.js",headers:[{key:"Cache-Control",value:"no-cache, no-store, must-revalidate"}]},
-    {source:"/manifest.json",headers:[{key:"Cache-Control",value:"no-cache, must-revalidate"}]},
-    {source:"/index.html",headers:[{key:"Cache-Control",value:"no-cache, must-revalidate"}]},
-    {source:"/(.*)",headers:[{key:"X-Content-Type-Options",value:"nosniff"},{key:"Referrer-Policy",value:"strict-origin-when-cross-origin"}]}
-  ],
-  rewrites:[{source:"/((?!api/|assets/|canvaskit/|icons/|hhk-sw\\.js|favicon\\.png|manifest\\.json|flutter_bootstrap\\.js|flutter\\.js|main\\.dart\\.js).*)",destination:"/index.html"}]
-},null,2)+'\n');
+// Read the canonical Vercel config from the Flutter source root.
+// A file placed only in build/web is ignored by GitSource Vercel deployments.
+const vercelConfig = JSON.parse(readFileSync(join(dir,'..','..','vercel.json'),'utf8'));
+if (vercelConfig.git?.deploymentEnabled !== false ||
+    !vercelConfig.rewrites?.some(rule => rule.destination === '/index.html')) {
+  throw new Error('Canonical Vercel config must disable auto deploy and include SPA fallback');
+}
+writeFileSync(join(dir,'vercel.json'),JSON.stringify(vercelConfig,null,2)+'\n');
 writeFileSync(join(dir,'hhk-build.json'),JSON.stringify({version,kind:'flutter-web-pwa',offlineAssets:paths.length},null,2)+'\n');
 console.log('HHK PWA ready', {version,precacheAssets:paths.length});

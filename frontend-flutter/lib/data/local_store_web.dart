@@ -3,6 +3,7 @@ import 'package:idb_shim/idb_shim.dart';
 import 'local_store.dart';
 
 class WebIndexedDbStore implements LocalStore {
+  // Keep the original DB name to preserve existing PWA users' v1 data.
   static const dbName = 'hhk_cap01_v1';
   static const table = 'settings';
   Database? _database;
@@ -10,7 +11,7 @@ class WebIndexedDbStore implements LocalStore {
   @override
   Future<void> open() async {
     _database ??=
-        await idbFactoryWeb.open(dbName, version: 1, onUpgradeNeeded: (event) {
+        await idbFactoryWeb.open(dbName, version: 2, onUpgradeNeeded: (event) {
       final db = event.database;
       if (!db.objectStoreNames.contains(table)) db.createObjectStore(table);
     });
@@ -31,10 +32,30 @@ class WebIndexedDbStore implements LocalStore {
   }
 
   @override
+  Future<List<String>> keys(String prefix) async {
+    final tx = _db.transaction(table, idbModeReadOnly);
+    final keys = await tx.objectStore(table).getAllKeys();
+    await tx.completed;
+    return keys.whereType<String>().where((key) => key.startsWith(prefix)).toList();
+  }
+
+  @override
   Future<void> write(String key, String value) async {
     final tx = _db.transaction(table, idbModeReadWrite);
     await tx.objectStore(table).put(value, key);
     await tx.completed;
+  }
+
+  @override
+  Future<String> update(
+      String key, String Function(String?) transform) async {
+    final tx = _db.transaction(table, idbModeReadWrite);
+    final store = tx.objectStore(table);
+    final previous = await store.getObject(key) as String?;
+    final next = transform(previous);
+    await store.put(next, key);
+    await tx.completed;
+    return next;
   }
 
   @override

@@ -1,0 +1,157 @@
+import {readFileSync, writeFileSync} from 'node:fs';
+
+const base = 'content/seed/v1/';
+const read = (name) => JSON.parse(readFileSync(base + name, 'utf8'));
+const manifest = read('manifest.json');
+const linked = read('questions.json');
+const quarantined = read('quarantine/questions.json');
+const all = [
+  ...linked.map((record) => ({record, quarantine: null})),
+  ...quarantined.map((entry) => ({
+    record: entry.record,
+    quarantine: entry.reason ?? entry.reasonCode ?? 'editorial_review_required',
+  })),
+];
+if (all.length !== manifest.counts.source_questions) {
+  throw new Error('Question source count mismatch');
+}
+
+const normalize = (value) => String(value ?? '').trim().toLowerCase();
+const validAnswer = (q) => {
+  const expected = normalize(q.correctAnswer);
+  if (q.questionType === 'true_false') {
+    return ['đúng', 'sai', 'true', 'false'].includes(expected);
+  }
+  if (q.questionType === 'fill_number') {
+    return expected !== '' && Number.isFinite(Number(expected.replace(',', '.')));
+  }
+  if (q.questionType === 'single_choice') {
+    try {
+      const options = JSON.parse(q.optionsJson ?? '');
+      return Array.isArray(options) &&
+        options.length >= 2 &&
+        options.every((x) => typeof x === 'string' && normalize(x).length > 0) &&
+        new Set(options.map(normalize)).size === options.length &&
+        options.some((x) => normalize(x) === expected);
+    } catch {
+      return false;
+    }
+  }
+  if (q.questionType === 'multi_choice') {
+    try {
+      const options = JSON.parse(q.optionsJson ?? '');
+      if (!Array.isArray(options) || options.length < 2 ||
+          options.some((x) => typeof x !== 'string' ||
+            !normalize(x) || x.includes(',')) ||
+          new Set(options.map(normalize)).size !== options.length) return false;
+      const answers = String(q.correctAnswer ?? '').split(',').map(normalize);
+      return answers.length >= 2 &&
+        new Set(answers).size === answers.length &&
+        answers.every((x) => options.map(normalize).includes(x));
+    } catch {
+      return false;
+    }
+  }
+  if (q.questionType === 'matching') {
+    try {
+      const o = JSON.parse(q.optionsJson ?? '');
+      if (!o || Array.isArray(o) ||
+          !Array.isArray(o.left) || !Array.isArray(o.right) ||
+          o.left.length < 2 || o.left.length > 12 ||
+          o.left.length !== o.right.length) return false;
+      for (const side of [o.left, o.right]) {
+        if (side.some(x => typeof x !== 'string' || !normalize(x)) ||
+            new Set(side.map(normalize)).size !== side.length) return false;
+      }
+      const tokens = String(q.correctAnswer ?? '').split(',');
+      if (tokens.length !== o.left.length) return false;
+      const seenL = new Set(), seenR = new Set();
+      for (const token of tokens) {
+        const match = /^([0-9]+)-([0-9]+)$/.exec(token.trim());
+        if (!match) return false;
+        const i = Number(match[1]), j = Number(match[2]);
+        if (i >= o.left.length || j >= o.right.length ||
+            seenL.has(i) || seenR.has(j)) return false;
+        seenL.add(i); seenR.add(j);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  if (q.questionType === 'ordering') {
+    try {
+      const o = JSON.parse(q.optionsJson ?? '');
+      if (!Array.isArray(o) || o.length < 2 || o.length > 12 ||
+          o.some(x => typeof x !== 'string' || !normalize(x) || x.includes(',')) ||
+          new Set(o.map(normalize)).size !== o.length) return false;
+      const expected = String(q.correctAnswer ?? '').split(',').map(normalize);
+      return expected.length === o.length &&
+          expected.every(Boolean) &&
+          new Set(expected).size === expected.length &&
+          expected.every(x => o.map(normalize).includes(x));
+    } catch {
+      return false;
+    }
+  }
+  return false;
+};
+
+const seen = new Set();
+const byType = {};
+const byGrade = {};
+const records = [];
+for (const {record: q, quarantine} of all) {
+  if (!q || !Number.isInteger(q.id) || seen.has(q.id)) {
+    throw new Error('Invalid or duplicated source question ID: ' + q?.id);
+  }
+  seen.add(q.id);
+  const type = q.questionType || '(missing)';
+  const supported = validAnswer(q) && quarantine === null;
+  byType[type] ??= {total: 0, usable: 0, quarantined: 0, safeToGrade: 0, needsReview: 0};
+  byType[type].total++;
+  byType[type][quarantine === null ? 'usable' : 'quarantined']++;
+  byType[type][supported ? 'safeToGrade' : 'needsReview']++;
+  const grade = String(q.grade ?? 'unknown');
+  byGrade[grade] ??= 0;
+  byGrade[grade]++;
+  let optionShape = 'none';
+  if (q.optionsJson != null) {
+    try {
+      const parsed = JSON.parse(q.optionsJson);
+      optionShape = Array.isArray(parsed)
+        ? 'array:' + (parsed.every((v) => typeof v === 'string') ? 'strings' : 'mixed')
+        : typeof parsed;
+    } catch {
+      optionShape = 'malformed-json';
+    }
+  }
+  records.push({
+    id: q.id,
+    type,
+    grade: q.grade ?? null,
+    lessonId: q.lessonId ?? null,
+    subjectCode: q.subjectCode ?? null,
+    answerShape: q.correctAnswer == null ? 'null' : typeof q.correctAnswer,
+    optionShape,
+    quarantine,
+    safeToGrade: supported,
+    editorialDecision: 'PENDING',
+  });
+}
+if (seen.size !== manifest.counts.source_questions) {
+  throw new Error('Source question IDs not preserved');
+}
+const report = {
+  sourceCommit: manifest.source_commit,
+  sourceQuestions: all.length,
+  linkedQuestions: linked.length,
+  quarantinedQuestions: quarantined.length,
+  byType,
+  byGrade,
+  records,
+  disclaimer: 'Machine classification only; every editorialDecision is PENDING. Quarantine IDs are never auto-remapped or deleted.',
+};
+writeFileSync('question-audit.json', JSON.stringify(report, null, 2) + '\n');
+console.log('Question audit classified ' + all.length + ' IDs. Output: question-audit.json');
+console.log(JSON.stringify({byType, byGrade}, null, 2));

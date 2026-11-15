@@ -13,6 +13,14 @@
 - **Quà tặng:** 1 lốc **20 cuốn tập** có 1 mã nhận quà/QR. Khách quét vào website công ty lấy key, rồi kích hoạt trong app. Hình thức quà/thời hạn/ngẫu nhiên chưa chốt; không hardcode.
 - **Sao lưu tiến độ:** tính năng tùy chọn trong giai đoạn sau; ứng dụng học được khi không có mạng.
 
+## Monorepo package manager
+
+Repo root có `package.json` dạng npm workspace **chỉ dành cho backend Prisma**
+(`backend-prisma/`). Điều này giúp Prisma nhận diện Node package manager tại
+root mà không chuyển Flutter thành frontend JavaScript/React. Code Flutter vẫn
+nằm ở `frontend-flutter/` và build độc lập; Git integration production
+không được auto-deploy. Chỉ cấu hình build Prisma ở workspace backend.
+
 ## Cấu trúc
 
 - `frontend-flutter/` — Flutter UI và nghiệp vụ học offline.

@@ -1,4 +1,4 @@
-import 'dart:convert';
+import 'dart:math';
 import 'package:material_ui/material_ui.dart';
 import '../../data/study_ledger.dart';
 import 'quiz_evaluator.dart';
@@ -9,6 +9,8 @@ class PracticePage extends StatefulWidget {
   final int grade;
   final int lessonId;
   final StudyLedger ledger;
+  final String profileId;
+  final String subjectCode;
   const PracticePage({
     super.key,
     required this.questions,
@@ -16,19 +18,55 @@ class PracticePage extends StatefulWidget {
     required this.grade,
     required this.lessonId,
     required this.ledger,
+    required this.profileId,
+    required this.subjectCode,
   });
   @override
   State<PracticePage> createState() => _PracticePageState();
 }
 
 class _PracticePageState extends State<PracticePage> {
+  final String attemptId =
+      'attempt-${DateTime.now().microsecondsSinceEpoch}-${Random.secure().nextInt(1 << 30)}';
+  final List<int> wrongQuestionIds = [];
   int index = 0;
   int correctCount = 0;
   String? selected;
+  final Set<String> selectedMultiple = <String>{};
+  final Map<int, int> selectedMatching = <int, int>{};
+  final List<String> selectedOrdering = <String>[];
   bool submitted = false;
   bool saving = false;
   LessonProgress? savedProgress;
   String? storageError;
+
+  bool _answerCorrect(Map<String, dynamic> question) {
+    switch (question['questionType']) {
+      case 'multi_choice':
+        return QuizEvaluator.correctMultiple(question, selectedMultiple);
+      case 'matching':
+        return QuizEvaluator.correctMatching(question, selectedMatching);
+      case 'ordering':
+        return QuizEvaluator.correctOrdering(question, selectedOrdering);
+      default:
+        return QuizEvaluator.correct(question, selected ?? '');
+    }
+  }
+
+  bool _answerCompleted(String? kind, Map<String, dynamic> question) {
+    switch (kind) {
+      case 'multi_choice':
+        return selectedMultiple.isNotEmpty;
+      case 'matching':
+        final parsed = QuizEvaluator.matchingQuestion(question);
+        return parsed != null && selectedMatching.length == parsed.left.length;
+      case 'ordering':
+        final parsed = QuizEvaluator.orderingQuestion(question);
+        return parsed != null && selectedOrdering.length == parsed.options.length;
+      default:
+        return selected != null && selected!.trim().isNotEmpty;
+    }
+  }
 
   Future<void> _finish() async {
     if (saving || savedProgress != null) return;
@@ -38,6 +76,10 @@ class _PracticePageState extends State<PracticePage> {
     });
     try {
       final result = await widget.ledger.recordResult(
+        profileId: widget.profileId,
+        subjectCode: widget.subjectCode,
+        attemptId: attemptId,
+        wrongQuestionIds: wrongQuestionIds,
         grade: widget.grade,
         lessonId: widget.lessonId,
         correct: correctCount,
@@ -84,16 +126,20 @@ class _PracticePageState extends State<PracticePage> {
 
     final question = widget.questions[index];
     final kind = question['questionType']?.toString();
+    final matching = kind == 'matching' ? QuizEvaluator.matchingQuestion(question) : null;
+    final ordering = kind == 'ordering' ? QuizEvaluator.orderingQuestion(question) : null;
+    final orderingChoices = ordering == null
+        ? <String>[]
+        : (List<String>.from(ordering.options)
+          ..shuffle(Random(((question['id'] as num?)?.toInt() ?? index + 1) ^ widget.lessonId)));
+    if (ordering != null &&
+        List.generate(orderingChoices.length, (i) => orderingChoices[i].trim().toLowerCase())
+            .join('|') == ordering.expected.join('|')) {
+      orderingChoices.setAll(0, orderingChoices.reversed.toList());
+    }
     List<String> options = [];
-    if (kind == 'single_choice') {
-      try {
-        options =
-            (jsonDecode(question['optionsJson']?.toString() ?? '[]') as List)
-                .map((value) => value.toString())
-                .toList(growable: false);
-      } catch (_) {
-        options = [];
-      }
+    if (kind == 'single_choice' || kind == 'multi_choice') {
+      options = QuizEvaluator.options(question);
     } else if (kind == 'true_false') {
       options = const ['Đúng', 'Sai'];
     }
@@ -113,20 +159,95 @@ class _PracticePageState extends State<PracticePage> {
                 style: Theme.of(context).textTheme.titleLarge),
           ),
         ),
-        if (options.isNotEmpty)
-          ...options.map((option) => Card(
-                child: ListTile(
-                  title: Text(option),
-                  selected: selected == option,
-                  leading: Icon(selected == option
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_unchecked),
-                  onTap: submitted
-                      ? null
-                      : () => setState(() => selected = option),
+        if (kind == 'matching' && matching != null) ...[
+          const Text('Chọn một vế phù hợp cho mỗi dòng'),
+          for (var i = 0; i < matching.left.length; i++)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(matching.left[i], style: Theme.of(context).textTheme.titleMedium),
+                    DropdownButton<int>(
+                      isExpanded: true,
+                      value: selectedMatching[i],
+                      hint: const Text('Chọn đáp án để nối'),
+                      items: [
+                        for (var j = 0; j < matching.right.length; j++)
+                          DropdownMenuItem<int>(
+                            value: j,
+                            child: Text(matching.right[j],
+                                overflow: TextOverflow.ellipsis),
+                          )
+                      ],
+                      onChanged: submitted ? null : (value) {
+                        if (value == null) return;
+                        setState(() {
+                          selectedMatching.removeWhere(
+                              (key, existing) => key != i && existing == value);
+                          selectedMatching[i] = value;
+                        });
+                      },
+                    ),
+                  ],
                 ),
-              ))
-        else
+              ),
+            ),
+        ],
+        if (kind == 'ordering' && ordering != null) ...[
+          const Text('Chạm các mục theo thứ tự đúng. Chạm lại để bỏ chọn.'),
+          for (final option in orderingChoices)
+            Card(
+              child: ListTile(
+                leading: CircleAvatar(
+                  child: Text(selectedOrdering.contains(option)
+                      ? (selectedOrdering.indexOf(option) + 1).toString()
+                      : '•'),
+                ),
+                title: Text(option),
+                selected: selectedOrdering.contains(option),
+                onTap: submitted ? null : () => setState(() {
+                  if (selectedOrdering.contains(option)) {
+                    selectedOrdering.remove(option);
+                  } else {
+                    selectedOrdering.add(option);
+                  }
+                }),
+              ),
+            ),
+        ],
+        if (kind == 'multi_choice')
+          const Text('Chọn tất cả đáp án đúng'),
+        if (options.isNotEmpty)
+          ...options.map((option) {
+            final isMulti = kind == 'multi_choice';
+            final active =
+                isMulti ? selectedMultiple.contains(option) : selected == option;
+            return Card(
+              child: ListTile(
+                title: Text(option),
+                selected: active,
+                leading: Icon(isMulti
+                    ? (active ? Icons.check_box : Icons.check_box_outline_blank)
+                    : (active
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked)),
+                onTap: submitted
+                    ? null
+                    : () => setState(() {
+                          if (isMulti) {
+                            if (!selectedMultiple.add(option)) {
+                              selectedMultiple.remove(option);
+                            }
+                          } else {
+                            selected = option;
+                          }
+                        }),
+              ),
+            );
+          })
+        else if (kind != 'matching' && kind != 'ordering')
           TextField(
             key: ValueKey('answer-$index'),
             enabled: !submitted,
@@ -145,7 +266,7 @@ class _PracticePageState extends State<PracticePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                        QuizEvaluator.correct(question, selected ?? '')
+                        _answerCorrect(question)
                             ? 'Chính xác!'
                             : 'Chưa đúng. Đáp án: ${question['correctAnswer']}',
                         style: Theme.of(context).textTheme.titleMedium),
@@ -165,16 +286,19 @@ class _PracticePageState extends State<PracticePage> {
                     setState(() {
                       index++;
                       selected = null;
+                      selectedMultiple.clear();
+                      selectedMatching.clear();
+                      selectedOrdering.clear();
                       submitted = false;
                     });
                   }
                 }
               : () {
-                  if (selected == null || selected!.trim().isEmpty) {
-                    return;
-                  }
-                  if (QuizEvaluator.correct(question, selected!)) {
+                  if (!_answerCompleted(kind, question)) return;
+                  if (_answerCorrect(question)) {
                     correctCount++;
+                  } else if (question['id'] is num) {
+                    wrongQuestionIds.add((question['id'] as num).toInt());
                   }
                   setState(() => submitted = true);
                 },

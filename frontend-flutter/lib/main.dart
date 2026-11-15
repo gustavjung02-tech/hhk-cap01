@@ -34,6 +34,9 @@ class _HomeScreenState extends State<HomeScreen> {
   int grade = 3;
   int tab = 0;
   bool initialized = false;
+  StudentProfile? activeProfile;
+  List<StudentProfile> profiles = [];
+  String? initializationError;
   late Future<GradePack> currentPack = repository.loadGrade(grade);
 
   @override
@@ -45,29 +48,109 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadSettings() async {
     try {
       await store.open();
-      final saved = int.tryParse(await store.read('selected_grade') ?? '');
+      await ledger.initialize();
+      final profile = await ledger.activeProfile();
+      final all = await ledger.listProfiles();
       if (mounted) {
         setState(() {
-          grade = saved != null && saved >= 1 && saved <= 5 ? saved : 3;
+          activeProfile = profile;
+          profiles = all;
+          grade = profile.grade;
           currentPack = repository.loadGrade(grade);
           initialized = true;
         });
       }
     } catch (_) {
       if (mounted) {
-        setState(() => initialized = true);
+        setState(() {
+          initialized = true;
+          initializationError =
+              'Không mở được dữ liệu học tập trên thiết bị. Hãy kiểm tra bộ nhớ và thử khởi động lại.';
+        });
       }
     }
   }
 
   Future<void> _selectGrade(int value) async {
-    setState(() {
-      grade = value;
-      currentPack = repository.loadGrade(value);
-    });
+    final current = activeProfile;
+    if (current == null) return;
     try {
-      await store.write('selected_grade', value.toString());
-    } catch (_) {}
+      final next = await ledger.changeGrade(current.id, value);
+      if (mounted) {
+        setState(() {
+          activeProfile = next;
+          profiles = profiles.map((p) => p.id == next.id ? next : p).toList();
+          grade = value;
+          currentPack = repository.loadGrade(value);
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Không lưu được lớp học offline.')));
+      }
+    }
+  }
+
+  Future<void> _switchProfile(String id) async {
+    try {
+      final next = await ledger.selectProfile(id);
+      if (mounted) {
+        setState(() {
+          activeProfile = next;
+          grade = next.grade;
+          currentPack = repository.loadGrade(grade);
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Không chọn được hồ sơ.')));
+      }
+    }
+  }
+
+  Future<void> _createProfile() async {
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+              title: const Text('Thêm hồ sơ học sinh'),
+              content: TextField(
+                controller: controller,
+                autofocus: true,
+                maxLength: 32,
+                decoration: const InputDecoration(labelText: 'Tên học sinh'),
+              ),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('Hủy')),
+                FilledButton(
+                    onPressed: () =>
+                        Navigator.pop(dialogContext, controller.text),
+                    child: const Text('Lưu offline'))
+              ],
+            ));
+    controller.dispose();
+    if (name == null || name.trim().isEmpty) return;
+    try {
+      final next = await ledger.createProfile(name, grade);
+      final all = await ledger.listProfiles();
+      if (mounted) {
+        setState(() {
+          activeProfile = next;
+          profiles = all;
+          grade = next.grade;
+          currentPack = repository.loadGrade(grade);
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Không tạo được hồ sơ offline.')));
+      }
+    }
   }
 
   @override
@@ -87,16 +170,41 @@ class _HomeScreenState extends State<HomeScreen> {
             Text('HHK CAP-01', style: TextStyle(fontWeight: FontWeight.w800)),
           ]),
           actions: [
-            Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: Center(
-                    child: Text('Lớp $grade',
-                        style: const TextStyle(fontWeight: FontWeight.bold)))),
+            if (activeProfile != null)
+              PopupMenuButton<String>(
+                tooltip: 'Chọn hồ sơ học sinh',
+                onSelected: (id) {
+                  if (id == 'create') {
+                    _createProfile();
+                  } else {
+                    _switchProfile(id);
+                  }
+                },
+                itemBuilder: (_) => [
+                  for (final profile in profiles)
+                    PopupMenuItem(
+                      value: profile.id,
+                      child: Text('${profile.name} • Lớp ${profile.grade}'),
+                    ),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(
+                      value: 'create', child: Text('Thêm hồ sơ')),
+                ],
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Center(
+                      child: Text('${activeProfile!.name} • Lớp $grade')),
+                ),
+              ),
           ]),
       body: SafeArea(
           child: !initialized
               ? const Center(child: CircularProgressIndicator())
-              : IndexedStack(index: tab, children: pages)),
+              : initializationError != null
+                  ? Center(child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(initializationError!, textAlign: TextAlign.center)))
+                  : IndexedStack(index: tab, children: pages)),
       bottomNavigationBar: NavigationBar(
           selectedIndex: tab,
           onDestinationSelected: (value) => setState(() => tab = value),
@@ -139,6 +247,19 @@ class _HomeScreenState extends State<HomeScreen> {
                       'Không cần Chat AI • Không gửi điểm từng câu lên máy chủ',
                       style: TextStyle(fontSize: 12)),
                 ])),
+        const SizedBox(height: 12),
+        if (activeProfile != null)
+          FutureBuilder<int>(
+              future: ledger.totalXp(activeProfile!.id),
+              builder: (context, snapshot) => Card(
+                    child: ListTile(
+                        leading: const Icon(Icons.emoji_events_outlined),
+                        title: Text('Hồ sơ: ${activeProfile!.name}'),
+                        subtitle: Text('XP tích lũy: ${snapshot.data ?? 0}'),
+                        trailing: TextButton(
+                            onPressed: _createProfile,
+                            child: const Text('Thêm học sinh'))),
+                  )),
         const SizedBox(height: 22),
         Text('Chọn lớp', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 8),
@@ -229,6 +350,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _settingsPage() =>
       ListView(padding: const EdgeInsets.all(16), children: [
+        if (activeProfile != null)
+          FutureBuilder<List<SubjectStatistics>>(
+            future: ledger.subjectStatistics(activeProfile!.id, grade),
+            builder: (context, snapshot) => Card(
+              child: ListTile(
+                leading: const Icon(Icons.bar_chart),
+                title: Text('Thống kê • ${activeProfile!.name} • Lớp $grade'),
+                subtitle: Text(snapshot.hasData
+                    ? '${snapshot.data!.fold<int>(0, (s, x) => s + x.lessonsPractised)} bài đã luyện • ${snapshot.data!.fold<int>(0, (s, x) => s + x.attempts)} lượt'
+                    : 'Đang đọc tiến độ local'),
+              ),
+            ),
+          ),
         const Card(
             child: ListTile(
                 leading: Icon(Icons.offline_bolt, color: HhkTheme.teal),
@@ -268,7 +402,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       onTap: () => Navigator.of(context).push(
                           MaterialPageRoute<void>(
                               builder: (_) => LessonPage(
-                                  pack: pack, lesson: lesson, ledger: ledger))),
+                                  pack: pack,
+                                  lesson: lesson,
+                                  ledger: ledger,
+                                  profileId: activeProfile!.id))),
                     ));
                   }),
             )));

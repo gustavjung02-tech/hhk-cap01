@@ -4,14 +4,23 @@ import 'local_store.dart';
 
 class SqliteStore implements LocalStore {
   Database? _database;
+
   @override
   Future<void> open() async {
     _database ??= await openDatabase(
       path.join(await getDatabasesPath(), 'hhk_cap01.db'),
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         await db.execute(
             'CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
+      },
+      // v1 settings rows are kept intact; StudyLedger migrates their content
+      // lazily into the versioned v2 document without deleting the originals.
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 1) {
+          await db.execute(
+              'CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
+        }
       },
     );
   }
@@ -30,10 +39,31 @@ class SqliteStore implements LocalStore {
   }
 
   @override
+  Future<List<String>> keys(String prefix) async {
+    final rows = await _db.query('settings', columns: ['key']);
+    return rows
+        .map((row) => row['key'] as String)
+        .where((key) => key.startsWith(prefix))
+        .toList();
+  }
+
+  @override
   Future<void> write(String key, String value) async {
     await _db.insert('settings', {'key': key, 'value': value},
         conflictAlgorithm: ConflictAlgorithm.replace);
   }
+
+  @override
+  Future<String> update(String key, String Function(String?) transform) =>
+      _db.transaction((txn) async {
+        final rows = await txn.query('settings',
+            columns: ['value'], where: 'key = ?', whereArgs: [key], limit: 1);
+        final previous = rows.isEmpty ? null : rows.first['value'] as String?;
+        final next = transform(previous);
+        await txn.insert('settings', {'key': key, 'value': next},
+            conflictAlgorithm: ConflictAlgorithm.replace);
+        return next;
+      });
 
   @override
   Future<void> close() async {
