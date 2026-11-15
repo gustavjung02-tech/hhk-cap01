@@ -45,6 +45,17 @@ jobs:
       - run: dart format lib test
       - run: flutter analyze
       - run: flutter test
-      - run: flutter build web --release
+      - run: flutter build web --release --pwa-strategy=none --base-href=/
+      - name: Build and verify iPhone installable offline PWA
+        run: |
+          node ../tooling/build-pwa.mjs build/web
+          node ../tooling/verify-pwa.mjs build/web
       - name: Android debug APK smoke
         run: flutter build apk --debug
+      - name: Retain tested Flutter Web files for manual Vercel deployment only
+        uses: actions/upload-artifact@v4
+        with:
+          name: hhk-flutter-web-pwa
+          path: frontend-flutter/build/web/
+          retention-days: 14
+          if-no-files-found: error
