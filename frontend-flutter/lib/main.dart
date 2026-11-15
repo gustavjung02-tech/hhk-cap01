@@ -3,6 +3,7 @@ import 'core/theme.dart';
 import 'data/catalog_repository.dart';
 import 'data/local_store.dart';
 import 'data/study_ledger.dart';
+import 'data/offline_license.dart';
 import 'features/study/lesson_page.dart';
 import 'features/account/account_page.dart';
 
@@ -35,6 +36,8 @@ class _HomeScreenState extends State<HomeScreen> {
   int grade = 3;
   int tab = 0;
   bool initialized = false;
+  final OfflineLicenseManager offline = OfflineLicenseManager();
+  late Future<bool> gradeEntitled = offline.gradeAllowed(grade);
   StudentProfile? activeProfile;
   List<StudentProfile> profiles = [];
   String? initializationError;
@@ -58,6 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
           profiles = all;
           grade = profile.grade;
           currentPack = repository.loadGrade(grade);
+          gradeEntitled = offline.gradeAllowed(grade);
           initialized = true;
         });
       }
@@ -83,6 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
           profiles = profiles.map((p) => p.id == next.id ? next : p).toList();
           grade = value;
           currentPack = repository.loadGrade(value);
+          gradeEntitled = offline.gradeAllowed(value);
         });
       }
     } catch (_) {
@@ -101,6 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
           activeProfile = next;
           grade = next.grade;
           currentPack = repository.loadGrade(grade);
+          gradeEntitled = offline.gradeAllowed(grade);
         });
       }
     } catch (_) {
@@ -154,6 +160,10 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _refreshLicense() async {
+    if (mounted) setState(() => gradeEntitled = offline.gradeAllowed(grade));
+  }
+
   @override
   void dispose() {
     store.close();
@@ -162,7 +172,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final pages = [_homePage(), _curriculumPage(), const AccountPage(), _settingsPage()];
+    final pages = [_homePage(), _curriculumPage(), AccountPage(onLicenseChanged: _refreshLicense), _settingsPage()];
     return Scaffold(
       appBar: AppBar(
           title: const Row(children: [
@@ -253,6 +263,20 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: TextStyle(fontSize: 12)),
                 ])),
         const SizedBox(height: 12),
+        FutureBuilder<bool>(
+          future: gradeEntitled,
+          builder: (context, snapshot) => Card(child: ListTile(
+            leading: Icon(snapshot.data == true
+                ? Icons.verified_user : Icons.lock_outline),
+            title: Text(snapshot.data == true
+                ? 'Quyền học offline lớp $grade: hợp lệ'
+                : 'Chưa kích hoạt quyền offline lớp $grade'),
+            subtitle: const Text('Phần xem thử vẫn dùng được. Kích hoạt trong tab Tài khoản để nhận lease Ed25519.'),
+            trailing: TextButton(
+              onPressed: () => setState(() => tab = 2),
+              child: const Text('Tài khoản')),
+          )),
+        ),
         if (activeProfile != null)
           FutureBuilder<int>(
               future: ledger.totalXp(activeProfile!.id),

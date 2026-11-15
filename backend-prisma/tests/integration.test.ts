@@ -276,4 +276,65 @@ if (!url) {
       'https://attacker.example');
   });
 
+
+  test('account-owned license activates without raw key and verifies signed offline lease', async () => {
+    const pwd = 'secure-account-password-123';
+    const email = 'account-device@example.test';
+    assert.equal((await json('/api/v1/accounts/register', {email, password:pwd})).status,200);
+    const signedIn = await json('/api/v1/accounts/login', {email,password:pwd});
+    const token = signedIn.body.sessionToken as string;
+    const withAuth = async (route: string, body: unknown, sessionToken = token) => {
+      const response = await app.request(route,{method:'POST',
+        headers:{'content-type':'application/json',authorization:'Bearer '+sessionToken},
+        body: JSON.stringify(body)});
+      return {status:response.status, body:await response.json() as Record<string,any>};
+    };
+    const [qrToken] = await batch(await campaign());
+    const redeemed = await withAuth('/api/v1/account/claims/redeem', {token:qrToken});
+    assert.equal(redeemed.status,200);
+    const licenseId = redeemed.body.licenseId as string;
+    const pair = generateKeyPairSync('ed25519');
+    const otherPair = generateKeyPairSync('ed25519');
+    const proof = (keyPair: typeof pair, action: 'account-activate'|'account-verify') => {
+      const devicePublicKey = keyPair.publicKey.export({type:'spki',format:'der'})
+        .subarray(-32).toString('base64url');
+      const signedAt = Date.now();
+      const nonce = randomBytes(18).toString('base64url');
+      const proof = sign(null, Buffer.from(proofMessage(
+        action, licenseId, devicePublicKey, nonce, signedAt)),keyPair.privateKey).toString('base64url');
+      return {licenseId,devicePublicKey,nonce,signedAt,proof};
+    };
+    const activated = await withAuth('/api/v1/account/keys/activate',
+      proof(pair,'account-activate'));
+    assert.equal(activated.status,200,JSON.stringify(activated.body));
+    const [payload, sig] = (activated.body.lease as string).split('.');
+    const publicKey = createPublicKey({key:Buffer.from(service.publicKey(),'base64url'),
+      format:'der', type:'spki'});
+    assert.equal(verify(null,Buffer.from(payload),publicKey,Buffer.from(sig,'base64url')),true);
+    const lease = JSON.parse(Buffer.from(payload,'base64url').toString());
+    assert.equal(lease.licenseId,licenseId);
+    assert.deepEqual(lease.grades,[1,3]);
+    assert.equal((await withAuth('/api/v1/account/keys/verify',
+      proof(pair,'account-verify'))).status,200);
+    const limit = await withAuth('/api/v1/account/keys/activate',
+      proof(otherPair,'account-activate'));
+    assert.equal(limit.status,409);
+    assert.equal(limit.body.code,'DEVICE_LIMIT_REACHED');
+    const forged = proof(pair,'account-activate');
+    forged.proof = randomBytes(64).toString('base64url');
+    assert.equal((await withAuth('/api/v1/account/keys/activate',forged)).status,401);
+    // A different account must not borrow the license ID even with a valid signed device.
+    assert.equal((await json('/api/v1/accounts/register',
+      {email:'stranger@example.test',password:pwd})).status,200);
+    const stranger = await json('/api/v1/accounts/login',
+      {email:'stranger@example.test',password:pwd});
+    const unauthorized = await withAuth('/api/v1/account/keys/activate',
+      proof(otherPair,'account-activate'),stranger.body.sessionToken);
+    assert.equal(unauthorized.status,404);
+    const revoked = await json('/api/v1/licenses/revoke',{licenseId},true);
+    assert.equal(revoked.status,200);
+    assert.equal((await withAuth('/api/v1/account/keys/verify',
+      proof(pair,'account-verify'))).body.code,'LICENSE_REVOKED');
+  });
+
 }

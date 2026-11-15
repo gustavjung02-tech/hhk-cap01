@@ -113,6 +113,10 @@ export function createApp(service?: LicenseService) {
   });
   app.post('/api/v1/account/keys/link', c => withAccount(c, true,
     (body, identity) => accounts!.linkKey(identity!.id, body)));
+  app.post('/api/v1/account/keys/activate', c => withAccount(c, true,
+    (body, identity) => service!.activateAccount(identity!.id, body)));
+  app.post('/api/v1/account/keys/verify', c => withAccount(c, true,
+    (body, identity) => service!.verifyAccount(identity!.id, body)));
   app.post('/api/v1/account/claims/redeem', c => withAccount(c, true,
     (body, identity) => service!.redeem(body, identity!.id)));
   for (const [path, handler] of Object.entries(handlers)) {

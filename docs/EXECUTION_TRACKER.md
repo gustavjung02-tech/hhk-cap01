@@ -1,5 +1,8 @@
 # HHK EXECUTION TRACKER
 
+> **Checkpoint mới về tài khoản & offline lease:** Xem [ACCOUNT_LICENSE_WORKFLOW.md](./ACCOUNT_LICENSE_WORKFLOW.md). Đã có source đăng nhập, QR trong app, đăng ký key cho tài khoản và ký/xác minh lease Ed25519 gắn thiết bị. Chờ CI SHA mới và backup trước khi migration 0003 trên staging; chưa deploy PWA hoặc production. Các đoạn ghi 'không có tài khoản'/'chưa có DB' phía dưới chỉ là lịch sử.
+
+
 > **Checkpoint cập nhật 15/11/2026 — #6:** Cơ sở dữ liệu `hhk-staging` hiện **READY**, đã chạy migrations 0001/0002; CI staging `11de041a` xanh. Prisma Compute bị chặn bởi `HostedStateBootstrapError` (existing unmanaged DB), không phải do thiếu database. Đã chọn backend Hono trên Vercel riêng, kết nối DB Prisma cũ; chỉ phát hành khi CI của commit mới xanh. Những dòng lịch sử phía dưới ghi "chưa có DB" là **đã lỗi thời**, không dùng làm trạng thái triển khai hiện hành. **Không thay đổi main/production.**
 
 **Nguồn trạng thái chuẩn:** [EPIC #1](https://github.com/gustavjung02-tech/hhk-cap01/issues/1) và issue con #2–#11.

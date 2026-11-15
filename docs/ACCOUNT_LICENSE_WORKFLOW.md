@@ -1,5 +1,15 @@
 # HHK tài khoản & quản lý key trong app — staging-first (Issue #2/#8/#9)
 
+## Checkpoint tiếp theo — signed lease theo tài khoản (source on staging)
+
+- Account-owned `POST /api/v1/account/keys/activate` và `POST /api/v1/account/keys/verify` dùng chữ ký Ed25519 theo **licenseId + action + nonce + timestamp + devicePublicKey**; server kiểm tra chủ tài khoản và giới hạn máy bằng PostgreSQL row lock. Không cần gửi raw license key sau khi gắn vào tài khoản.
+- Flutter tạo khóa riêng Ed25519 cho thiết bị, lưu private key bằng `flutter_secure_storage` (Android Keystore/iOS Keychain; bản Web là thử nghiệm). Khóa riêng không gửi server. App xác minh lease bằng public key Ed25519 **đã pin**, ràng buộc thiết bị, lớp, thời hạn và không cấp quyền từ một cờ local.
+- Giao diện key có nút kích hoạt/gia hạn trên máy; màn hình chính thông báo trạng thái lease lớp đang chọn. Chưa chặn bản học thử vì chưa chốt ranh giới free/premium và static PWA JSON vẫn public.
+- CI test mô phỏng chứng minh proof client ký đúng, từ chối chữ ký lease bị sửa, lease hết hạn, sai lớp và lease cho thiết bị khác. Đây là **code mới chưa phát hành**; QA thiết bị thật, Safari và xác minh key persistence vẫn cần làm.
+- **Cổng release:** CI xanh SHA mới, Prisma staging backup hiện đang trả danh sách rỗng → chưa chạy migration `0003` trên database thật; không chạm production. Cần phương án backup phù hợp rồi mới migration và phát hành backend staging.
+- Auth vẫn thiếu xác minh email, khôi phục mật khẩu, chống abuse phân tán và khóa public legacy QR redeem trước release công khai. Issue #9 chưa được đóng.
+
+
 ## Nghiệp vụ đã chốt theo yêu cầu mới (15/11/2026)
 
 1. Người dùng/phụ huynh có **tài khoản online** (email + mật khẩu). Hồ sơ học sinh, bài làm, XP và nội dung offline tiếp tục lưu **trên thiết bị**, không chuyển sang PostgreSQL.

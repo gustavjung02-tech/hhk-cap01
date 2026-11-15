@@ -7,7 +7,8 @@ import '../../data/account_api.dart';
 /// Parent/user account and key registry. Learner profiles remain offline-only.
 class AccountPage extends StatefulWidget {
   final AccountApi? api;
-  const AccountPage({super.key, this.api});
+  final Future<void> Function()? onLicenseChanged;
+  const AccountPage({super.key, this.api, this.onLicenseChanged});
 
   @override
   State<AccountPage> createState() => _AccountPageState();

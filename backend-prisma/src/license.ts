@@ -81,6 +81,42 @@ function parseDevice(value: unknown, action: 'activate' | 'verify' | 'transfer')
            deviceHashHex: hexDigest(raw) };
 }
 
+type AccountDevice = {
+  licenseId: string;
+  deviceHash: Buffer;
+  deviceHashHex: string;
+};
+
+// The signed message uses the license ID, not a raw bearer license key.
+// Distinct action names prevent replaying v1 activate/verify/transfer proofs.
+function parseAccountDevice(value: unknown, action: 'account-activate' | 'account-verify'):
+  AccountDevice {
+  const p = value as Record<string, unknown> | null;
+  if (!p || typeof p.licenseId !== 'string' || !uuidPattern.test(p.licenseId) ||
+      typeof p.devicePublicKey !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(p.devicePublicKey) ||
+      typeof p.nonce !== 'string' || !noncePattern.test(p.nonce) ||
+      typeof p.proof !== 'string' || !/^[A-Za-z0-9_-]{86}$/.test(p.proof) ||
+      typeof p.signedAt !== 'number' || !Number.isSafeInteger(p.signedAt) ||
+      Math.abs(Date.now() - p.signedAt) > 5 * 60 * 1000) {
+    throw new ApiFault(400, 'INVALID_DEVICE_PROOF');
+  }
+  const raw = Buffer.from(p.devicePublicKey, 'base64url');
+  const sig = Buffer.from(p.proof, 'base64url');
+  if (raw.length !== 32 || sig.length !== 64) {
+    throw new ApiFault(400, 'INVALID_DEVICE_PROOF');
+  }
+  const key = createPublicKey({
+    key: Buffer.concat([ed25519SpkiPrefix, raw]), format: 'der', type: 'spki'
+  });
+  const message = proofMessage(action, p.licenseId, p.devicePublicKey,
+                               p.nonce, p.signedAt);
+  if (!verify(null, Buffer.from(message), key, sig)) {
+    throw new ApiFault(401, 'INVALID_DEVICE_SIGNATURE');
+  }
+  return {licenseId: p.licenseId, deviceHash: digest(p.devicePublicKey),
+          deviceHashHex: hexDigest(raw)};
+}
+
 export function proofMessage(action: string, licenseKey: string, devicePublicKey: string,
                              nonce: string, signedAt: number) {
   return ['HHK-DEVICE-PROOF-v1', action, licenseKey, devicePublicKey, nonce,
@@ -225,13 +261,7 @@ export class LicenseService {
     });
   }
 
-  private async lookupLicense(c: PoolClient, licenseHash: Buffer, locked: boolean) {
-    const row = await c.query<LicenseRow>(
-      'SELECT id,status,entitled_grades,valid_from,valid_until,max_devices FROM licenses WHERE license_hash=$1' +
-        (locked ? ' FOR UPDATE' : ''), [licenseHash]
-    );
-    if (!row.rows[0]) throw new ApiFault(404, 'LICENSE_NOT_FOUND');
-    const license = row.rows[0];
+  private checkLicense(license: LicenseRow) {
     if (license.status === 'revoked') throw new ApiFault(403, 'LICENSE_REVOKED');
     if (license.status === 'expired' || license.valid_from.getTime() > Date.now() ||
         (license.valid_until && license.valid_until.getTime() <= Date.now())) {
@@ -240,52 +270,107 @@ export class LicenseService {
     return license;
   }
 
+  private async lookupAccountLicense(
+    c: PoolClient, accountId: string, licenseId: string, locked: boolean
+  ) {
+    const result = await c.query<LicenseRow>(
+      'SELECT id,status,entitled_grades,valid_from,valid_until,max_devices ' +
+      'FROM licenses WHERE id=$1 AND account_id=$2' + (locked ? ' FOR UPDATE' : ''),
+      [licenseId, accountId]
+    );
+    if (!result.rows[0]) throw new ApiFault(404, 'LICENSE_NOT_FOUND');
+    return this.checkLicense(result.rows[0]);
+  }
+
+  private async lookupLicense(c: PoolClient, licenseHash: Buffer, locked: boolean) {
+    const row = await c.query<LicenseRow>(
+      'SELECT id,status,entitled_grades,valid_from,valid_until,max_devices FROM licenses WHERE license_hash=$1' +
+        (locked ? ' FOR UPDATE' : ''), [licenseHash]
+    );
+    if (!row.rows[0]) throw new ApiFault(404, 'LICENSE_NOT_FOUND');
+    return this.checkLicense(row.rows[0]);
+  }
+
+  private async activateKnownLicense(
+    c: PoolClient, license: LicenseRow,
+    device: {deviceHash: Buffer; deviceHashHex: string}
+  ) {
+    const existing = await c.query<DeviceRow>(
+      'SELECT id,active FROM device_activations WHERE license_id=$1 AND device_public_key_hash=$2',
+      [license.id, device.deviceHash]
+    );
+    if (existing.rows[0] && !existing.rows[0].active) {
+      throw new ApiFault(403, 'DEVICE_REVOKED');
+    }
+    if (!existing.rows[0]) {
+      const used = await c.query<{count: string}>(
+        'SELECT count(*)::text AS count FROM device_activations WHERE license_id=$1 AND active=true',
+        [license.id]
+      );
+      if (Number(used.rows[0].count) >= license.max_devices) {
+        throw new ApiFault(409, 'DEVICE_LIMIT_REACHED');
+      }
+      await c.query(
+        'INSERT INTO device_activations (id,license_id,device_public_key_hash) VALUES ($1,$2,$3)',
+        [randomUUID(), license.id, device.deviceHash]
+      );
+      await c.query(
+        "INSERT INTO license_audit (license_id,operation,outcome) VALUES ($1,'activate','success')",
+        [license.id]
+      );
+    }
+    if (license.status === 'issued') {
+      await c.query("UPDATE licenses SET status='active' WHERE id=$1", [license.id]);
+    }
+    return this.lease(license, device.deviceHashHex);
+  }
+
+  private async verifyKnownLicense(
+    c: PoolClient, license: LicenseRow,
+    device: {deviceHash: Buffer; deviceHashHex: string}
+  ) {
+    if (license.status !== 'active') throw new ApiFault(403, 'NOT_ACTIVATED');
+    const row = await c.query<DeviceRow>(
+      'SELECT id,active FROM device_activations WHERE license_id=$1 AND device_public_key_hash=$2',
+      [license.id, device.deviceHash]
+    );
+    if (!row.rows[0]?.active) throw new ApiFault(403, 'DEVICE_NOT_ACTIVE');
+    return this.lease(license, device.deviceHashHex);
+  }
+
   async activate(value: unknown) {
     const device = parseDevice(value, 'activate');
-    return transaction(this.config.pool, async c => {
-      const license = await this.lookupLicense(c, device.licenseHash, true);
-      const existing = await c.query<DeviceRow>(
-        'SELECT id,active FROM device_activations WHERE license_id=$1 AND device_public_key_hash=$2',
-        [license.id, device.deviceHash]
-      );
-      if (existing.rows[0] && !existing.rows[0].active) throw new ApiFault(403, 'DEVICE_REVOKED');
-      if (!existing.rows[0]) {
-        const used = await c.query<{count: string}>(
-          'SELECT count(*)::text AS count FROM device_activations WHERE license_id=$1 AND active=true',
-          [license.id]
-        );
-        if (Number(used.rows[0].count) >= license.max_devices) {
-          throw new ApiFault(409, 'DEVICE_LIMIT_REACHED');
-        }
-        await c.query(
-          'INSERT INTO device_activations (id,license_id,device_public_key_hash) VALUES ($1,$2,$3)',
-          [randomUUID(), license.id, device.deviceHash]
-        );
-        await c.query(
-          "INSERT INTO license_audit (license_id,operation,outcome) VALUES ($1,'activate','success')",
-          [license.id]
-        );
-      }
-      if (license.status === 'issued') {
-        await c.query("UPDATE licenses SET status='active' WHERE id=$1", [license.id]);
-      }
-      return this.lease(license, device.deviceHashHex);
-    });
+    return transaction(this.config.pool, async c =>
+      this.activateKnownLicense(c, await this.lookupLicense(c, device.licenseHash, true), device)
+    );
   }
 
   async verify(value: unknown) {
     const device = parseDevice(value, 'verify');
     const c = await this.config.pool.connect();
     try {
-      const license = await this.lookupLicense(c, device.licenseHash, false);
-      if (license.status !== 'active') throw new ApiFault(403, 'NOT_ACTIVATED');
-      const row = await c.query<DeviceRow>(
-        'SELECT id,active FROM device_activations WHERE license_id=$1 AND device_public_key_hash=$2',
-        [license.id, device.deviceHash]
-      );
-      if (!row.rows[0]?.active) throw new ApiFault(403, 'DEVICE_NOT_ACTIVE');
-      return this.lease(license, device.deviceHashHex);
-    } finally {c.release();}
+      return await this.verifyKnownLicense(c,
+        await this.lookupLicense(c, device.licenseHash, false), device);
+    } finally { c.release(); }
+  }
+
+  async activateAccount(accountId: string, value: unknown) {
+    const device = parseAccountDevice(value, 'account-activate');
+    return transaction(this.config.pool, async c =>
+      this.activateKnownLicense(c,
+        await this.lookupAccountLicense(c, accountId, device.licenseId, true),
+        device)
+    );
+  }
+
+  async verifyAccount(accountId: string, value: unknown) {
+    const device = parseAccountDevice(value, 'account-verify');
+    const c = await this.config.pool.connect();
+    try {
+      return await this.verifyKnownLicense(c,
+        await this.lookupAccountLicense(c, accountId, device.licenseId, false),
+        device);
+    } finally { c.release(); }
   }
 
   async revoke(value: unknown) {

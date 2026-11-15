@@ -166,6 +166,18 @@ class AccountApi {
         token: session.token, body: {'licenseKey': key});
   }
 
+  Future<String> activateKey(AccountSession session, Map<String, dynamic> proof) async {
+    final result = await _call('/api/v1/account/keys/activate',
+        token: session.token, body: proof);
+    return result['lease'] as String;
+  }
+
+  Future<String> verifyKey(AccountSession session, Map<String, dynamic> proof) async {
+    final result = await _call('/api/v1/account/keys/verify',
+        token: session.token, body: proof);
+    return result['lease'] as String;
+  }
+
   Future<void> logout(AccountSession session) async {
     await _call('/api/v1/account/logout', token: session.token, body: {});
   }
