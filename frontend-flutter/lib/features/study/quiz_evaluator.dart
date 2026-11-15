@@ -173,13 +173,16 @@ class QuizEvaluator {
         return _number(expected) != null;
       case 'multi_choice':
         return _multipleExpected(question) != null;
+      case 'matching':
+        return matchingQuestion(question) != null;
+      case 'ordering':
+        return orderingQuestion(question) != null;
       case 'single_choice':
         final options = _options(question);
         return options != null &&
             options.any((option) => _normalize(option) == _normalize(expected));
       default:
-        // Free text, matching, ordering, and unknown types remain excluded
-        // pending explicit semantics and UI.
+        // Free text and unknown types remain excluded pending review.
         return false;
     }
   }
