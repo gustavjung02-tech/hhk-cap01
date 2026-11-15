@@ -69,3 +69,10 @@ jobs:
           path: frontend-flutter/build/web/
           retention-days: 14
           if-no-files-found: error
+      - name: Download exact release artifact for offline integrity QA
+        uses: actions/download-artifact@v4
+        with:
+          name: hhk-flutter-web-pwa
+          path: ${{ runner.temp }}/hhk-pwa-artifact-check
+      - name: Verify packaged PWA assets (not only build directory)
+        run: node ../tooling/verify-pwa.mjs "$RUNNER_TEMP/hhk-pwa-artifact-check"

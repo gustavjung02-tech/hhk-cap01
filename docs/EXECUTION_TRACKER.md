@@ -36,3 +36,7 @@ Chi tiết triển khai và đoạn bàn giao cho chat khác: [HHK_HANDOFF.md](.
 - **#4 IN PROGRESS:** chỉ chấm các kiểu có quy tắc chặt `true_false`, `single_choice`, `fill_number`; tạm ẩn các kiểu khác, không coi text/đa chọn là câu đúng mặc định. Chưa audit đủ 19.043 ID.
 - **#6 BLOCKED:** Prisma gus-02 không có database/Compute; vẫn chỉ đọc, chưa migration.
 - **Production:** không thay đổi; deployment manual-only, chưa phát hành đợt này.
+
+## Release check — service worker package integrity (15/11/2026)
+
+Artifact `hhk-flutter-web-pwa` từ CI `eca35560` có 48 file, nhưng worker yêu cầu thêm `/.last_build_id` — file ẩn bị `upload-artifact` loại bỏ. Điều này khiến bước install offline có thể fail dù build directory test pass. Lỗi được xác nhận trực tiếp trên ZIP, không phát hành ZIP đó. Bước sửa phải loại file volatile này khỏi precache, kiểm tra *artifact sau download* rồi mới deploy. Preview của `eca35560` được tạo thủ công qua Vercel GitSource, không bật auto-deploy; version khác artifact CI, cần so sánh trước khi promote.

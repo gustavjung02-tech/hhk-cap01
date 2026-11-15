@@ -8,7 +8,7 @@ const dir = process.argv[2] || 'frontend-flutter/build/web';
 if (!existsSync(join(dir, 'index.html')) || !existsSync(join(dir,'main.dart.js'))) {
   throw new Error('Flutter build/web not ready. Build Flutter first.');
 }
-const exclude = new Set(['hhk-sw.js', 'vercel.json', 'flutter_service_worker.js', '.DS_Store']);
+const exclude = new Set(['hhk-sw.js', 'vercel.json', 'flutter_service_worker.js', '.DS_Store', '.last_build_id']);
 const files = [];
 function walk(directory) {
   for (const item of readdirSync(directory, { withFileTypes: true })) {
