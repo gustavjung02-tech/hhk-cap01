@@ -44,11 +44,11 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       await store.open();
       final saved = int.tryParse(await store.read('selected_grade') ?? '');
-      if (mounted) setState(() {
+      if (mounted) { setState(() {
         grade = saved != null && saved >= 1 && saved <= 5 ? saved : 3;
         currentPack = repository.loadGrade(grade);
         initialized = true;
-      });
+      }); }
     } catch (_) {
       if (mounted) { setState(() => initialized = true); }
     }
@@ -140,7 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _curriculumPage() => FutureBuilder<GradePack>(future:currentPack,
     builder:(context,snapshot) {
       if(snapshot.hasError){return Center(child:Text('${snapshot.error}'));}
-      if(!snapshot.hasData)return const Center(child:CircularProgressIndicator());
+      if(!snapshot.hasData){return const Center(child:CircularProgressIndicator());}
       final pack=snapshot.data!;
       return ListView(padding:const EdgeInsets.all(16),children:[
         Text('Bài học lớp $grade',style:Theme.of(context).textTheme.headlineSmall),

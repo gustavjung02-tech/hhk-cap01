@@ -16,6 +16,14 @@ for(const [path,v] of Object.entries(manifest.contentFiles)) {
 }
 const lessons=read('lessons.json'),cards=read('lesson_cards.json'),questions=read('questions.json');
 const lids=new Set(lessons.map(x=>x.id));
+const quarantinedCards=read('quarantine/cards.json'),quarantinedQuestions=read('quarantine/questions.json');
+if(cards.length+quarantinedCards.length!==manifest.counts.source_cards
+ ||questions.length+quarantinedQuestions.length!==manifest.counts.source_questions)throw Error('Source item count loss');
+if(quarantinedCards.length!==manifest.counts.quarantined_cards
+ ||quarantinedQuestions.length!==manifest.counts.quarantined_questions)throw Error('Quarantine counts mismatch');
+const allCardIds=new Set([...cards.map(x=>x.id),...quarantinedCards.map(x=>x.record.id)]);
+const allQuestionIds=new Set([...questions.map(x=>x.id),...quarantinedQuestions.map(x=>x.record.id)]);
+if(allCardIds.size!==manifest.counts.source_cards||allQuestionIds.size!==manifest.counts.source_questions)throw Error('Dropped or duplicate source ID');
 for(const [name,a] of [['lessons',lessons],['cards',cards],['questions',questions]]) {
  if(new Set(a.map(x=>x.id)).size!==a.length) throw Error('Duplicate '+name);
 }
@@ -26,4 +34,4 @@ for(let g=0;g<=5;g++){
  if(p.lessons.length!==manifest.counts.grades[g].lessons)throw Error('Grade pack mismatch '+g);
 }
 if(questions.length===0 || lessons.length===0) throw Error('Empty curriculum');
-console.log('PASS content: '+lessons.length+' lessons; '+questions.length+' questions');
+console.log('PASS content integrity: '+lessons.length+' lessons; '+questions.length+' usable questions; '+quarantinedQuestions.length+' quarantined questions requiring editorial review');

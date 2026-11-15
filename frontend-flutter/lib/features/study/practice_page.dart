@@ -61,7 +61,7 @@ class _PracticePageState extends State<PracticePage> {
         FilledButton(
           onPressed: submitted ? ()=>setState(() {index++;selected=null;submitted=false;}) :
             ()=>setState(() {if(selected==null||selected!.trim().isEmpty){return;}
-              if(selected!.trim()==q['correctAnswer']?.toString().trim())correct++;
+              if(selected!.trim()==q['correctAnswer']?.toString().trim()){correct++;}
               submitted=true;
             }),
           child:Text(submitted?'Câu tiếp theo':'Kiểm tra'),

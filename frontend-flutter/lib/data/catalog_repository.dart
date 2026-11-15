@@ -33,11 +33,11 @@ class GradePack {
 
 class CatalogRepository {
   Future<GradePack> loadGrade(int grade) async {
-    if (grade < 1 || grade > 5) throw ArgumentError.value(grade, 'grade');
+    if (grade < 1 || grade > 5) { throw ArgumentError.value(grade, 'grade'); }
     final raw = await rootBundle.loadString('assets/content/grades/grade-$grade.json');
     final value = jsonDecode(raw) as Map<String, dynamic>;
     final pack = GradePack.fromJson(value);
-    if (pack.grade != grade) throw StateError('Sai phiên bản gói nội dung lớp $grade');
+    if (pack.grade != grade) { throw StateError('Sai phiên bản gói nội dung lớp $grade'); }
     return pack;
   }
 }

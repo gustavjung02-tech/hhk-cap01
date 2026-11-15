@@ -29,17 +29,26 @@ function assertUnique(label: string, items: Array<{id: number}>) {
 assertUnique('lessons',seedLessons);
 assertUnique('lesson_cards',seedLessonCards);
 assertUnique('questions',seedQuestions);
-const lessonIds = new Set(seedLessons.map(x => x.id));
-for (const row of seedLessonCards) if (!lessonIds.has(row.lessonId)) throw Error('Orphan lesson card: ' + row.id);
-for (const row of seedQuestions) if (!lessonIds.has(row.lessonId)) throw Error('Orphan question: ' + row.id);
+const lessonById = new Map(seedLessons.map(row => [row.id, row]));
 const subjectCodes = new Set(allSubjects.map(s => s.code));
-for (const row of seedLessons) if (!subjectCodes.has(row.subjectCode)) throw Error('Unknown lesson subject ' + row.subjectCode);
-for (const row of seedQuestions) if (!subjectCodes.has(row.subjectCode)) throw Error('Unknown question subject ' + row.subjectCode);
-
-const lessons = seedLessons.map(row => ({...row,textbook:null})); // legacy round-robin is not verified
+for (const row of seedLessons) {
+  if (!subjectCodes.has(row.subjectCode)) throw Error('Unknown lesson subject ' + row.subjectCode);
+}
+const invalidReason = (row: any): string | null => {
+  const parent = lessonById.get(row.lessonId);
+  if (!parent) return 'MISSING_LESSON';
+  if ('grade' in row && row.grade !== parent.grade) return 'GRADE_MISMATCH';
+  if ('subjectCode' in row && row.subjectCode !== parent.subjectCode) return 'SUBJECT_MISMATCH';
+  return null;
+};
+const invalidCards = seedLessonCards.filter((row: any) => invalidReason(row));
+const invalidQuestions = seedQuestions.filter((row: any) => invalidReason(row));
+const invalidCardIds = new Set(invalidCards.map((row: any) => row.id));
+const invalidQuestionIds = new Set(invalidQuestions.map((row: any) => row.id));
+const lessons = seedLessons.map(row => ({...row,textbook:null})); // source auto-assigned textbooks; not editorially verified
 const subjects = allSubjects;
-const cards = seedLessonCards;
-const questions = seedQuestions;
+const cards = seedLessonCards.filter((row: any) => !invalidCardIds.has(row.id));
+const questions = seedQuestions.filter((row: any) => !invalidQuestionIds.has(row.id));
 const files: Record<string, unknown> = {
  'subjects.json':subjects,
  'lessons.json':lessons,
@@ -48,6 +57,7 @@ const files: Record<string, unknown> = {
 };
 mkdirSync(destination,{recursive:true});
 mkdirSync(resolve(destination,'grades'),{recursive:true});
+mkdirSync(resolve(destination,'quarantine'),{recursive:true});
 const hashes: Record<string,{sha256:string,bytes:number}> = {};
 function store(filename:string,value:unknown) {
  const json = JSON.stringify(value) + '\n';
@@ -57,6 +67,8 @@ function store(filename:string,value:unknown) {
  hashes[filename] = {sha256:hash,bytes:Buffer.byteLength(json)};
 }
 for (const [p,data] of Object.entries(files)) store(p,data);
+store('quarantine/cards.json', invalidCards.map((row: any) => ({reason:invalidReason(row),record:row})));
+store('quarantine/questions.json', invalidQuestions.map((row: any) => ({reason:invalidReason(row),record:row})));
 const countsByGrade: Record<string,{lessons:number,cards:number,questions:number}> = {};
 for (let g=0;g<=5;g++) {
  const ll = lessons.filter(x=>x.grade===g);
@@ -69,8 +81,12 @@ for (let g=0;g<=5;g++) {
 }
 store('manifest.json',{
  ...labels,
- counts:{subjects:subjects.length,lessons:lessons.length,cards:cards.length,questions:questions.length,grades:countsByGrade},
- editorial:{textbookVerified:false,answersReviewed:false,audioObjectsVerified:false},
+ counts:{subjects:subjects.length,lessons:lessons.length,cards:cards.length,questions:questions.length,
+  source_cards:seedLessonCards.length,source_questions:seedQuestions.length,
+  quarantined_cards:invalidCards.length,quarantined_questions:invalidQuestions.length,grades:countsByGrade},
+ editorial:{textbookVerified:false,answersReviewed:false,audioObjectsVerified:false,
+  quarantinedContentRequiresManualReview:invalidCards.length+invalidQuestions.length>0},
  contentFiles:hashes,
 });
-console.log(JSON.stringify({counts:{subjects:subjects.length,lessons:lessons.length,cards:cards.length,questions:questions.length},grades:countsByGrade}));
+console.log(JSON.stringify({counts:{subjects:subjects.length,lessons:lessons.length,cards:cards.length,questions:questions.length},grades:countsByGrade,
+quarantine:{cards:invalidCards.length,questions:invalidQuestions.length}}));
