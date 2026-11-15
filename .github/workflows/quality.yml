@@ -159,7 +159,7 @@ jobs:
           working-directory: .
           module: backend-prisma/deploy/module.ts
           environment: staging
-          install-command: npm install --no-audit --no-fund
+          install-command: npm install --no-audit --no-fund && node -e "require.resolve('@prisma/composer'); require.resolve('@prisma/composer-prisma-cloud')"
           build-command: npm --workspace backend-prisma run compute:build
       - name: Require an actual staging URL
         if: steps.prisma.outputs.outcome == 'succeeded'

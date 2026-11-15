@@ -11,5 +11,9 @@
     "backend:typecheck": "npm --workspace backend-prisma run typecheck",
     "backend:test": "npm --workspace backend-prisma run test",
     "backend:build": "npm --workspace backend-prisma run build"
+  },
+  "devDependencies": {
+    "@prisma/composer": "0.36.0",
+    "@prisma/composer-prisma-cloud": "0.36.0"
   }
 }
