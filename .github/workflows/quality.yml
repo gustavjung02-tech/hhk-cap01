@@ -103,5 +103,7 @@ jobs:
         run: echo "CHROME_EXECUTABLE=$(command -v google-chrome || command -v chromium || command -v chromium-browser)" >> "$GITHUB_ENV"
       - name: Check integration test formatting
         run: dart format test_browser
+      - name: Stage browser-only test inside Flutter test root
+        run: cp test_browser/indexeddb_test.dart test/indexeddb_web_test.dart
       - name: Exercise actual IndexedDB in headless Chrome
-        run: flutter test --platform chrome test_browser/indexeddb_test.dart
+        run: flutter test --platform chrome test/indexeddb_web_test.dart
