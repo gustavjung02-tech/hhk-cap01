@@ -1,4 +1,4 @@
--- Học Hứng Khởi: no child learning records, no XP, no AI/chat, only keys and redemptions.
+-- HHK / Prisma Postgres: license registry only. NO child learning records, XP or AI chat.
 BEGIN;
 
 CREATE TABLE IF NOT EXISTS print_batches (

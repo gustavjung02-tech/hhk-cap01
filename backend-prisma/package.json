@@ -1,0 +1,24 @@
+{
+  "name": "hhk-qr-license-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.11.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.0",
+    "hono": "^4.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

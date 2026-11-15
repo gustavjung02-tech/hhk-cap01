@@ -15,15 +15,15 @@
 - Mọi nhãn bộ sách gán vòng tròn trong source được đặt `textbook: null` ở JSON chuẩn cho tới khi biên tập xác minh. Không được tự gắn bộ sách sai.
 - Âm thanh: nguồn source có **TTS manifest**; file thực tế ở R2 cần kiểm kê độc lập. Không nói có audio offline đầy đủ nếu chưa kiểm chứng.
 - Không copy React/Vite/Electron/Service Worker cũ, Express/SQLite server cũ, AI cũ, build logs, generated reports, tiền mã hóa.
-- Flutter app không biết Neon URL/DB password, không chấm bài trên Cloudflare.
+- Flutter app không biết Prisma Postgres URL/DB password, không gọi server để chấm từng bài.
 
 ## License & bảo mật
 
-- Neon chứa `print_batches`, `claim_tokens`, `reward_campaigns`, `licenses`, `device_activations`, `license_audit`.
-- Token QR/Key lưu **hash** ở DB; phát hành ngẫu nhiên đủ entropy và chống đoán; rate limit/IP abuse policy ở Worker.
-- Cloudflare chỉ xác nhận quyền, trả **offline license có chữ ký số** (device-bound, hạn sử dụng, policy version). Chữ ký được Flutter xác thực bằng public key trước khi mở quyền. Không cho Flutter tự đặt Premium trong SQLite.
+- Prisma Postgres chứa `print_batches`, `claim_tokens`, `reward_campaigns`, `licenses`, `device_activations`, `license_audit`.
+- Token QR/Key lưu **hash** ở DB; phát hành ngẫu nhiên đủ entropy và chống đoán; rate limit/IP abuse policy ở backend Prisma.
+- Backend Prisma chỉ xác nhận quyền, trả **offline license có chữ ký số** (device-bound, hạn sử dụng, policy version). Chữ ký được Flutter xác thực bằng public key trước khi mở quyền. Không cho Flutter tự đặt Premium trong SQLite.
 - Một token QR chỉ đổi quà một lần bằng transaction; phương án chống quét trước bán cần tem kín hoặc xác nhận mua hàng. Chuyển máy/thu hồi theo chính sách.
-- API khi chưa cấu hình Neon/khóa ký phải trả lỗi đóng, tuyệt đối không giả vờ kích hoạt thành công.
+- API khi chưa cấu hình Prisma Postgres/khóa ký phải trả lỗi đóng, tuyệt đối không giả vờ kích hoạt thành công.
 
 ## Phân phối
 

@@ -1,5 +1,5 @@
 import {readdirSync,statSync,readFileSync} from 'node:fs';import {join} from 'node:path';
-const forbidden=['src/','electron/','backend/','public/sw.js','vite.config.ts','package-lock.json','node_modules/','dist/','build/'];
+const forbidden=['src/','electron/','backend/','public/sw.js','vite.config.ts','package-lock.json','node_modules/','dist/','build/','db-neon/','license-api/'];
 const bad=[];
 for(const path of forbidden){try{statSync(path);bad.push(path)}catch{}}
 function scan(dir){
