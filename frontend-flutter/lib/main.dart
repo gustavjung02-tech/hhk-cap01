@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'core/theme.dart';
 import 'data/catalog_repository.dart';
 import 'data/local_store.dart';
+import 'data/study_ledger.dart';
 import 'features/study/lesson_page.dart';
 
 void main() {
@@ -29,6 +30,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final CatalogRepository repository = CatalogRepository();
   final LocalStore store = createLocalStore();
+  late final StudyLedger ledger = StudyLedger(store);
   int grade = 3;
   int tab = 0;
   bool initialized = false;
@@ -266,7 +268,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       onTap: () => Navigator.of(context).push(
                           MaterialPageRoute<void>(
                               builder: (_) =>
-                                  LessonPage(pack: pack, lesson: lesson))),
+                                  LessonPage(pack: pack, lesson: lesson, ledger: ledger))),
                     ));
                   }),
             )));

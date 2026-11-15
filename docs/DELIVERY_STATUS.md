@@ -4,7 +4,7 @@
 **Repo nguồn:** https://github.com/gustavjung01/cap-01 — giữ nguyên.
 
 ## Có thật
-- Flutter/Dart: chọn lớp 1–5, xem bài học, trắc nghiệm; SQLite Android/iOS và IndexedDB Web là lớp lưu cục bộ, chưa có đầy đủ hệ thống tiến độ.
+- Flutter/Dart: chọn lớp 1–5, xem bài học, trắc nghiệm; SQLite Android/iOS và IndexedDB Web lưu lớp đã chọn và kết quả/XP tốt nhất theo bài học. Đã sửa chấm Đúng/Sai source true/false; vẫn chưa có hồ sơ học sinh đầy đủ.
 - JSON nguồn: 9 môn, 1.247 bài, 4.988 thẻ, 19.043 ID câu hỏi; 1.600 câu hỏi cách ly cần duyệt.
 - PWA đã deploy thủ công lên Vercel: https://hhk-cap01-pwa.vercel.app từ CI artifact được xác minh SHA256.
 - Vercel Git integration không kết nối và cấu hình source `git.deploymentEnabled=false`. Không có workflow auto-deploy.

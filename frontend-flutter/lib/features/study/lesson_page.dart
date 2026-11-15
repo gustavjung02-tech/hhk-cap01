@@ -1,11 +1,13 @@
 import 'package:material_ui/material_ui.dart';
 import '../../data/catalog_repository.dart';
+import '../../data/study_ledger.dart';
 import 'practice_page.dart';
 
 class LessonPage extends StatelessWidget {
   final GradePack pack;
   final Map<String, dynamic> lesson;
-  const LessonPage({super.key, required this.pack, required this.lesson});
+  final StudyLedger ledger;
+  const LessonPage({super.key, required this.pack, required this.lesson, required this.ledger});
 
   @override
   Widget build(BuildContext context) {
@@ -45,6 +47,9 @@ class LessonPage extends StatelessWidget {
               : () => Navigator.of(context).push(MaterialPageRoute<void>(
                   builder: (_) => PracticePage(
                       questions: questions,
+                      grade: pack.grade,
+                      lessonId: id,
+                      ledger: ledger,
                       lessonTitle:
                           lesson['title']?.toString() ?? 'Luyện tập'))),
           icon: const Icon(Icons.quiz_outlined),
