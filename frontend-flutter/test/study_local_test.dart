@@ -13,7 +13,9 @@ class InMemoryStore implements LocalStore {
   @override
   Future<String?> read(String key) async => values[key];
   @override
-  Future<void> write(String key, String value) async => values[key] = value;
+  Future<void> write(String key, String value) async {
+    values[key] = value;
+  }
   @override
   Future<String> update(String key, String Function(String?) transform) async {
     final next = transform(values[key]);
@@ -123,6 +125,24 @@ void main() {
     expect(next.bestXp, 80);
     final another = await ledger.createProfile('Khác', 4);
     expect(await ledger.load(profileId: another.id, grade: 4, lessonId: 100), isNull);
+  });
+
+  test('parallel save with same attempt id is recorded once', () async {
+    final store = InMemoryStore();
+    await store.open();
+    final first = StudyLedger(store);
+    final second = StudyLedger(store);
+    await first.initialize();
+    final p = await first.activeProfile();
+    await Future.wait([
+      first.recordResult(profileId: p.id, grade: 3, lessonId: 9,
+          attemptId: 'same-attempt', correct: 4, total: 10),
+      second.recordResult(profileId: p.id, grade: 3, lessonId: 9,
+          attemptId: 'same-attempt', correct: 4, total: 10),
+    ]);
+    final saved = await first.load(profileId: p.id, grade: 3, lessonId: 9);
+    expect(saved!.attempts, 1);
+    expect(saved.bestXp, 40);
   });
 
   test('invalid score and unknown profile do not write progress', () async {

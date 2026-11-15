@@ -226,7 +226,7 @@ class StudyLedger {
     if (legacy['grade'] != grade || legacy['lessonId'] != lessonId) {
       throw StateError('Invalid legacy lesson progress');
     }
-    await _mutate<void>((state) {
+    await _mutate<bool>((state) {
       final progress = state['progress'] as Map;
       final key = _key(defaultProfileId, grade, lessonId);
       if (!progress.containsKey(key)) {
@@ -247,6 +247,7 @@ class StudyLedger {
           recentHistory: const [],
         ).toJson();
       }
+      return true;
     });
   }
 
