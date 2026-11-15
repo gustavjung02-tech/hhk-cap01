@@ -267,8 +267,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => Navigator.of(context).push(
                           MaterialPageRoute<void>(
-                              builder: (_) =>
-                                  LessonPage(pack: pack, lesson: lesson, ledger: ledger))),
+                              builder: (_) => LessonPage(
+                                  pack: pack, lesson: lesson, ledger: ledger))),
                     ));
                   }),
             )));

@@ -87,8 +87,10 @@ class _PracticePageState extends State<PracticePage> {
     List<String> options = [];
     if (kind == 'single_choice') {
       try {
-        options = (jsonDecode(question['optionsJson']?.toString() ?? '[]') as List)
-            .map((value) => value.toString()).toList(growable: false);
+        options =
+            (jsonDecode(question['optionsJson']?.toString() ?? '[]') as List)
+                .map((value) => value.toString())
+                .toList(growable: false);
       } catch (_) {
         options = [];
       }
@@ -119,7 +121,9 @@ class _PracticePageState extends State<PracticePage> {
                   leading: Icon(selected == option
                       ? Icons.radio_button_checked
                       : Icons.radio_button_unchecked),
-                  onTap: submitted ? null : () => setState(() => selected = option),
+                  onTap: submitted
+                      ? null
+                      : () => setState(() => selected = option),
                 ),
               ))
         else
@@ -137,14 +141,17 @@ class _PracticePageState extends State<PracticePage> {
           Card(
             child: Padding(
               padding: const EdgeInsets.all(14),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(QuizEvaluator.correct(question, selected ?? '')
-                    ? 'Chính xác!'
-                    : 'Chưa đúng. Đáp án: ${question['correctAnswer']}',
-                    style: Theme.of(context).textTheme.titleMedium),
-                if (question['explanationSimple'] != null)
-                  Text(question['explanationSimple'].toString()),
-              ]),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                        QuizEvaluator.correct(question, selected ?? '')
+                            ? 'Chính xác!'
+                            : 'Chưa đúng. Đáp án: ${question['correctAnswer']}',
+                        style: Theme.of(context).textTheme.titleMedium),
+                    if (question['explanationSimple'] != null)
+                      Text(question['explanationSimple'].toString()),
+                  ]),
             ),
           ),
         const SizedBox(height: 16),
@@ -172,7 +179,9 @@ class _PracticePageState extends State<PracticePage> {
                   setState(() => submitted = true);
                 },
           child: Text(submitted
-              ? index + 1 == widget.questions.length ? 'Lưu kết quả' : 'Câu tiếp theo'
+              ? index + 1 == widget.questions.length
+                  ? 'Lưu kết quả'
+                  : 'Câu tiếp theo'
               : 'Kiểm tra'),
         ),
       ]),

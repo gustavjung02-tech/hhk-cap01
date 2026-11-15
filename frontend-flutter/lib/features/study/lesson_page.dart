@@ -7,7 +7,11 @@ class LessonPage extends StatelessWidget {
   final GradePack pack;
   final Map<String, dynamic> lesson;
   final StudyLedger ledger;
-  const LessonPage({super.key, required this.pack, required this.lesson, required this.ledger});
+  const LessonPage(
+      {super.key,
+      required this.pack,
+      required this.lesson,
+      required this.ledger});
 
   @override
   Widget build(BuildContext context) {

@@ -10,7 +10,10 @@ class InMemoryStore implements LocalStore {
   @override
   Future<String?> read(String key) async => values[key];
   @override
-  Future<void> write(String key, String value) async { values[key] = value; }
+  Future<void> write(String key, String value) async {
+    values[key] = value;
+  }
+
   @override
   Future<void> close() async {}
 }
@@ -23,8 +26,10 @@ void main() {
   });
 
   test('numeric input accepts decimal comma', () {
-    expect(QuizEvaluator.correct(
-        {'questionType': 'fill_number', 'correctAnswer': '1.5'}, '1,5'), isTrue);
+    expect(
+        QuizEvaluator.correct(
+            {'questionType': 'fill_number', 'correctAnswer': '1.5'}, '1,5'),
+        isTrue);
   });
 
   test('local XP only increases for improved best answer count', () async {

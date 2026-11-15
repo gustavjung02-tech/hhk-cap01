@@ -65,12 +65,17 @@ class StudyLedger {
     required int correct,
     required int total,
   }) async {
-    if (grade < 1 || grade > 5 || lessonId <= 0 || total <= 0 ||
-        correct < 0 || correct > total) {
+    if (grade < 1 ||
+        grade > 5 ||
+        lessonId <= 0 ||
+        total <= 0 ||
+        correct < 0 ||
+        correct > total) {
       throw ArgumentError('Invalid local practice result');
     }
     final old = await load(grade, lessonId);
-    final best = old == null || correct > old.bestCorrect ? correct : old.bestCorrect;
+    final best =
+        old == null || correct > old.bestCorrect ? correct : old.bestCorrect;
     final result = LessonProgress(
       grade: grade,
       lessonId: lessonId,
