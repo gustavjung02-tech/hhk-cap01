@@ -39,6 +39,15 @@ class SqliteStore implements LocalStore {
   }
 
   @override
+  Future<List<String>> keys(String prefix) async {
+    final rows = await _db.query('settings', columns: ['key']);
+    return rows
+        .map((row) => row['key'] as String)
+        .where((key) => key.startsWith(prefix))
+        .toList();
+  }
+
+  @override
   Future<void> write(String key, String value) async {
     await _db.insert('settings', {'key': key, 'value': value},
         conflictAlgorithm: ConflictAlgorithm.replace);

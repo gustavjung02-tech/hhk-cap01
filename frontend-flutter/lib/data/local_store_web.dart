@@ -32,6 +32,14 @@ class WebIndexedDbStore implements LocalStore {
   }
 
   @override
+  Future<List<String>> keys(String prefix) async {
+    final tx = _db.transaction(table, idbModeReadOnly);
+    final keys = await tx.objectStore(table).getAllKeys();
+    await tx.completed;
+    return keys.whereType<String>().where((key) => key.startsWith(prefix)).toList();
+  }
+
+  @override
   Future<void> write(String key, String value) async {
     final tx = _db.transaction(table, idbModeReadWrite);
     await tx.objectStore(table).put(value, key);

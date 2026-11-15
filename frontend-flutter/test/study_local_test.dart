@@ -13,6 +13,10 @@ class InMemoryStore implements LocalStore {
   @override
   Future<String?> read(String key) async => values[key];
   @override
+  Future<List<String>> keys(String prefix) async =>
+      values.keys.where((key) => key.startsWith(prefix)).toList();
+
+  @override
   Future<void> write(String key, String value) async {
     values[key] = value;
   }
@@ -144,6 +148,32 @@ void main() {
     expect(next.bestXp, 80);
     final another = await ledger.createProfile('Khác', 4);
     expect(await ledger.load(profileId: another.id, grade: 4, lessonId: 100), isNull);
+  });
+
+  test('all v1 lessons are migrated on boot, not only when opened', () async {
+    final store = InMemoryStore();
+    await store.open();
+    for (final lessonId in [100, 101]) {
+      await store.write('progress:v1:4:$lessonId', jsonEncode({
+        'grade': 4, 'lessonId': lessonId, 'attempts': 2,
+        'bestCorrect': lessonId == 100 ? 8 : 4, 'totalQuestions': 10,
+        'updatedAt': '2026-11-01T00:00:00.000Z'
+      }));
+    }
+    await store.write('selected_grade', '4');
+    var ledger = StudyLedger(store);
+    await ledger.initialize();
+    final profile = await ledger.activeProfile();
+    expect(await ledger.totalXp(profile.id), 120);
+    // Restart must not import or duplicate any attempt.
+    await store.close();
+    await store.open();
+    ledger = StudyLedger(store);
+    await ledger.initialize();
+    expect((await ledger.progressFor(profile.id)).length, 2);
+    expect(await ledger.totalXp(profile.id), 120);
+    expect((await ledger.load(profileId: profile.id, grade: 4, lessonId: 100))!.attempts, 2);
+    expect(await store.keys('progress:v1:'), hasLength(2));
   });
 
   test('parallel save with same attempt id is recorded once', () async {

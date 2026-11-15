@@ -5,6 +5,7 @@ import 'local_store_native.dart' if (dart.library.html) 'local_store_web.dart'
 abstract interface class LocalStore {
   Future<void> open();
   Future<String?> read(String key);
+  Future<List<String>> keys(String prefix);
   Future<void> write(String key, String value);
 
   /// Read/modify/write in one database transaction. The callback must be
