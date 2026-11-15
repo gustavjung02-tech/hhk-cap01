@@ -1,0 +1,65 @@
+name: Import pinned legacy content (JSON + selected assets)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/import-source.yml'
+      - 'tooling/export-legacy-content.mts'
+      - 'content/source-lock.json'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: hhk-content-import
+  cancel-in-progress: false
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout clean repo
+        uses: actions/checkout@v4
+        with:
+          path: current
+      - name: Checkout exact legacy commit (source remains unchanged)
+        uses: actions/checkout@v4
+        with:
+          repository: gustavjung01/cap-01
+          ref: 7ab83326db4ab3141e2d42aeefe2ea182f13452b
+          path: legacy
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Export structured curriculum as JSON; no React or Electron code
+        run: |
+          cp current/tooling/export-legacy-content.mts legacy/export-legacy-content.mts
+          cd legacy
+          npm exec --yes --package=tsx@4.20.6 -- tsx export-legacy-content.mts ../current/content/seed/v1
+      - name: Export selected media and manifests
+        run: |
+          mkdir -p current/content/media current/frontend-flutter/assets/brand
+          cp legacy/public/audio/tts/manifest.json current/content/media/tts_manifest.json
+          cp legacy/public/audio/tts/drive-packs.json current/content/media/tts_drive_packs.json
+          cp legacy/public/icon.png current/frontend-flutter/assets/brand/icon.png
+          cp legacy/public/mascots/dopi-avatar.png current/frontend-flutter/assets/brand/dopi-avatar.png
+          cp legacy/public/image/landing-hero.jpg current/frontend-flutter/assets/brand/landing-hero.jpg
+          cp current/content/seed/v1/grades/grade-*.json current/frontend-flutter/assets/content/grades/
+      - name: Validate IDs, FKs, grade coverage and SHA256
+        working-directory: current
+        run: |
+          node tooling/validate-export.mjs
+          node tooling/check-clean.mjs
+          test -s content/media/tts_manifest.json
+      - name: Commit imported assets and data to main
+        working-directory: current
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add content/seed/v1 content/media frontend-flutter/assets
+          if git diff --cached --quiet; then
+            echo 'No changes'
+            exit 0
+          fi
+          git commit -m 'data: import verified pinned curriculum and media manifests'
+          git push origin HEAD:main

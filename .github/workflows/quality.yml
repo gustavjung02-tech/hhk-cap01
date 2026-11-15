@@ -1,0 +1,50 @@
+name: Flutter / content / license CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  clean-content:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node tooling/check-clean.mjs
+      - run: node tooling/validate-export.mjs
+  worker:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: license-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm test
+  flutter:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend-flutter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate native platform scaffolds through Flutter only
+        run: flutter create --project-name hhk_cap01 --platforms=android,ios,web .
+      - run: flutter pub get
+      - run: dart format --output=none --set-exit-if-changed lib test
+      - run: flutter analyze
+      - run: flutter test
+      - run: flutter build web --release
+      - name: Android debug APK smoke
+        run: flutter build apk --debug
