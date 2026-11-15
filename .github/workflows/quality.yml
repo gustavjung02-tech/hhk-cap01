@@ -156,11 +156,11 @@ jobs:
         id: prisma
         uses: prisma/cloud-deploy-action@v1
         with:
-          working-directory: backend-prisma
-          module: deploy/module.ts
+          working-directory: .
+          module: backend-prisma/deploy/module.ts
           environment: staging
           install-command: npm install --no-audit --no-fund
-          build-command: npm run compute:build
+          build-command: npm --workspace backend-prisma run compute:build
       - name: Require an actual staging URL
         if: steps.prisma.outputs.outcome == 'succeeded'
         env:
