@@ -159,7 +159,7 @@ jobs:
           working-directory: .
           module: backend-prisma/deploy/module.ts
           environment: staging
-          install-command: bun install && bun -e "await import('@prisma/composer/deploy'); await import('@prisma/composer-prisma-cloud/target')"
+          install-command: bun install && bun -e "await import('@prisma/composer'); await import('@prisma/composer-prisma-cloud')"
           build-command: npm --workspace backend-prisma run compute:build
       - name: Require an actual staging URL
         if: steps.prisma.outputs.outcome == 'succeeded'
