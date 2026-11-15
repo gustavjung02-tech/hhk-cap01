@@ -165,7 +165,7 @@ if (!url) {
     const active=await pool.query('SELECT count(*)::int AS n FROM device_activations WHERE active=true');
     assert.equal(active.rows[0].n,1);
     const registry=await pool.query("SELECT version FROM hhk_schema_migrations ORDER BY version");
-    assert.deepEqual(registry.rows.map(row => row.version),['0001','0002']);
+    assert.deepEqual(registry.rows.map(row => row.version),['0001','0002','0003']);
   });
 
   test('authorized device transfer and license revocation',async () => {

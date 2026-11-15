@@ -111,7 +111,9 @@ class _AccountPageState extends State<AccountPage> {
                         onPressed: () async {
                           await Clipboard.setData(
                               ClipboardData(text: issued.licenseKey));
-                          if (dialogContext.mounted) Navigator.pop(dialogContext);
+                          if (dialogContext.mounted) {
+                            Navigator.pop(dialogContext);
+                          }
                         }),
                     FilledButton(
                         onPressed: () => Navigator.pop(dialogContext),
@@ -136,7 +138,9 @@ class _AccountPageState extends State<AccountPage> {
     if (busy || session == null) return;
     final scanned = await Navigator.of(context).push<String>(
         MaterialPageRoute(builder: (_) => const ClaimQrScanner()));
-    if (scanned != null && mounted) await redeem(scanned);
+    if (scanned != null && mounted) {
+      await redeem(scanned);
+    }
   }
 
   Future<void> signOut() => run(() async {
