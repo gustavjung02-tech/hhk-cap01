@@ -108,14 +108,14 @@ class QuizEvaluator {
       final pattern = RegExp(r'^([0-9]+)-([0-9]+)$');
       for (final token in tokens) {
         final match = pattern.firstMatch(token.trim());
-        if (match == null) return null;
+        if (match == null) { return null; }
         final l = int.parse(match.group(1)!);
         final r = int.parse(match.group(2)!);
         if (l >= left.length || r >= right.length ||
-            mapping.containsKey(l) || !usedRight.add(r)) return null;
+            mapping.containsKey(l) || !usedRight.add(r)) { return null; }
         mapping[l] = r;
       }
-      if (mapping.length != left.length) return null;
+      if (mapping.length != left.length) { return null; }
       return MatchingQuestion(left, right, mapping);
     } catch (_) {
       return null;
@@ -124,11 +124,11 @@ class QuizEvaluator {
 
   static bool correctMatching(Map<String, dynamic> question,
       Map<int, int> selected) {
-    if (question['questionType'] != 'matching') return false;
+    if (question['questionType'] != 'matching') { return false; }
     final parsed = matchingQuestion(question);
-    if (parsed == null || selected.length != parsed.left.length) return false;
+    if (parsed == null || selected.length != parsed.left.length) { return false; }
     for (final entry in parsed.expected.entries) {
-      if (selected[entry.key] != entry.value) return false;
+      if (selected[entry.key] != entry.value) { return false; }
     }
     return true;
   }
@@ -138,28 +138,28 @@ class QuizEvaluator {
   static OrderingQuestion? orderingQuestion(Map<String, dynamic> question) {
     final options = _options(question);
     if (options == null || options.length > 12 ||
-        options.any((v) => v.contains(','))) return null;
+        options.any((v) => v.contains(','))) { return null; }
     final ordered = (question['correctAnswer']?.toString() ?? '')
         .split(',')
         .map(_normalize)
         .toList();
     if (ordered.length != options.length ||
         ordered.any((v) => v.isEmpty) ||
-        ordered.toSet().length != options.length) return null;
+        ordered.toSet().length != options.length) { return null; }
     final optionSet = options.map(_normalize).toSet();
-    if (!ordered.toSet().containsAll(optionSet)) return null;
+    if (!ordered.toSet().containsAll(optionSet)) { return null; }
     return OrderingQuestion(options, ordered);
   }
 
   static bool correctOrdering(
       Map<String, dynamic> question, List<String> selected) {
-    if (question['questionType'] != 'ordering') return false;
+    if (question['questionType'] != 'ordering') { return false; }
     final parsed = orderingQuestion(question);
     if (parsed == null || parsed.expected.length != selected.length) {
       return false;
     }
     for (var i = 0; i < selected.length; i++) {
-      if (_normalize(selected[i]) != parsed.expected[i]) return false;
+      if (_normalize(selected[i]) != parsed.expected[i]) { return false; }
     }
     return true;
   }

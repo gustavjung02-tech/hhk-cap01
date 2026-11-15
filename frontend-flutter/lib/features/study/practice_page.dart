@@ -135,7 +135,7 @@ class _PracticePageState extends State<PracticePage> {
     if (ordering != null &&
         List.generate(orderingChoices.length, (i) => orderingChoices[i].trim().toLowerCase())
             .join('|') == ordering.expected.join('|')) {
-      orderingChoices.reverse();
+      orderingChoices.setAll(0, orderingChoices.reversed.toList());
     }
     List<String> options = [];
     if (kind == 'single_choice' || kind == 'multi_choice') {
