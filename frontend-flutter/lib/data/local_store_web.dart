@@ -7,6 +7,7 @@ class WebIndexedDbStore implements LocalStore {
   static const table = 'settings';
   Database? _database;
 
+  @override
   Future<void> open() async {
     _database ??= await idbFactoryWeb.open(dbName,
       version: 1, onUpgradeNeeded: (event) {
@@ -21,6 +22,7 @@ class WebIndexedDbStore implements LocalStore {
     return db;
   }
 
+  @override
   Future<String?> read(String key) async {
     final tx = _db.transaction(table, idbModeReadOnly);
     final value = await tx.objectStore(table).getObject(key);
@@ -28,12 +30,14 @@ class WebIndexedDbStore implements LocalStore {
     return value as String?;
   }
 
+  @override
   Future<void> write(String key, String value) async {
     final tx = _db.transaction(table, idbModeReadWrite);
     await tx.objectStore(table).put(value, key);
     await tx.completed;
   }
 
+  @override
   Future<void> close() async {
     _database?.close();
     _database = null;

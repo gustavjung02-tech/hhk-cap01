@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 class PracticePage extends StatefulWidget {
   final List<Map<String,dynamic>> questions;
   final String lessonTitle;
@@ -40,9 +40,11 @@ class _PracticePageState extends State<PracticePage> {
         Card(child:Padding(padding:const EdgeInsets.all(18),
           child:Text(q['questionText']?.toString()??'',style:Theme.of(context).textTheme.titleLarge))),
         if(options.isNotEmpty)
-          ...options.map((option)=>Card(child:RadioListTile<String>(
-            title:Text(option),value:option,groupValue:selected,
-            onChanged:submitted?null:(value)=>setState(()=>selected=value),
+          ...options.map((option) => Card(child: ListTile(
+            title: Text(option),
+            selected: selected == option,
+            leading: Icon(selected == option ? Icons.radio_button_checked : Icons.radio_button_unchecked),
+            onTap: submitted ? null : () => setState(() { selected = option; }),
           )))
         else TextField(
           key:ValueKey('answer-$index'), enabled:!submitted,
@@ -58,7 +60,7 @@ class _PracticePageState extends State<PracticePage> {
         const SizedBox(height:16),
         FilledButton(
           onPressed: submitted ? ()=>setState(() {index++;selected=null;submitted=false;}) :
-            ()=>setState(() {if(selected==null||selected!.trim().isEmpty)return;
+            ()=>setState(() {if(selected==null||selected!.trim().isEmpty){return;}
               if(selected!.trim()==q['correctAnswer']?.toString().trim())correct++;
               submitted=true;
             }),

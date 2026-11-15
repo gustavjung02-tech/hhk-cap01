@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'core/theme.dart';
 import 'data/catalog_repository.dart';
 import 'data/local_store.dart';
@@ -50,7 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
         initialized = true;
       });
     } catch (_) {
-      if (mounted) setState(() => initialized = true);
+      if (mounted) { setState(() => initialized = true); }
     }
   }
 
@@ -113,8 +113,8 @@ class _HomeScreenState extends State<HomeScreen> {
     ]),
     const SizedBox(height:20),
     FutureBuilder<GradePack>(future:currentPack,builder:(context,snapshot){
-      if(snapshot.hasError)return Text('Lỗi tải nội dung: ${snapshot.error}');
-      if(!snapshot.hasData)return const Center(child:CircularProgressIndicator());
+      if(snapshot.hasError){return Text('Lỗi tải nội dung: ${snapshot.error}');}
+      if(!snapshot.hasData){return const Center(child:CircularProgressIndicator());}
       final pack=snapshot.data!;
       return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
         Text('Môn học • Lớp $grade',style:Theme.of(context).textTheme.titleLarge),
@@ -139,7 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _curriculumPage() => FutureBuilder<GradePack>(future:currentPack,
     builder:(context,snapshot) {
-      if(snapshot.hasError)return Center(child:Text('${snapshot.error}'));
+      if(snapshot.hasError){return Center(child:Text('${snapshot.error}'));}
       if(!snapshot.hasData)return const Center(child:CircularProgressIndicator());
       final pack=snapshot.data!;
       return ListView(padding:const EdgeInsets.all(16),children:[

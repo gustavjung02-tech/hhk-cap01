@@ -4,6 +4,7 @@ import 'local_store.dart';
 
 class SqliteStore implements LocalStore {
   Database? _database;
+  @override
   Future<void> open() async {
     _database ??= await openDatabase(
       path.join(await getDatabasesPath(), 'hhk_cap01.db'),
@@ -20,17 +21,20 @@ class SqliteStore implements LocalStore {
     return db;
   }
 
+  @override
   Future<String?> read(String key) async {
     final rows = await _db.query('settings', columns: ['value'],
         where: 'key = ?', whereArgs: [key], limit: 1);
     return rows.isEmpty ? null : rows.first['value'] as String?;
   }
 
+  @override
   Future<void> write(String key, String value) async {
     await _db.insert('settings', {'key': key, 'value': value},
         conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
+  @override
   Future<void> close() async {
     await _database?.close();
     _database = null;

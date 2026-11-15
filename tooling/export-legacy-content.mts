@@ -7,9 +7,9 @@ import * as seedModule from './src/data/seedData.ts';
 import * as subjectModule from './src/data/subjects.ts';
 // The original TS data files are treated as CommonJS by the legacy package.
 const seed = (seedModule as any).default ?? seedModule;
-const subjects = (subjectModule as any).default ?? subjectModule;
+const subjectExports = (subjectModule as any).default ?? subjectModule;
 const { seedLessons, seedLessonCards, seedQuestions } = seed;
-const { allSubjects } = subjects;
+const { allSubjects } = subjectExports;
 
 const EXPECTED = '7ab83326db4ab3141e2d42aeefe2ea182f13452b';
 const rev = execFileSync('git', ['rev-parse', 'HEAD'], {encoding:'utf8'}).trim();
