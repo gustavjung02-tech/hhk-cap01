@@ -134,8 +134,6 @@ class StudyLedger {
         'progress': <String, dynamic>{}
       });
     });
-    // Import ALL legacy lessons up front; otherwise the XP dashboard and
-    // future offline backups would silently omit lessons never reopened.
     await _migrateAllLegacy();
   }
 
@@ -270,6 +268,7 @@ class StudyLedger {
     });
   }
 
+  /// Import legacy best-XP for the default profile on first visit to a lesson.
   /// Legacy values are not modified, so failures never destroy v1 data.
   Future<void> _migrateLegacy(int grade, int lessonId) async {
     final key = _key(defaultProfileId, grade, lessonId);
@@ -279,180 +278,6 @@ class StudyLedger {
     final imported = _legacyProgress(raw, grade, lessonId);
     await _mutate<bool>((state) {
       (state['progress'] as Map).putIfAbsent(key, () => imported.toJson());
-      return true;
-    });
-  }
-
-  Future<LessonProgress?> load(
-      {required String profileId, required int grade, required int lessonId}) async {
-    if (profileId == defaultProfileId) await _migrateLegacy(grade, lessonId);
-    final state = await _state();
-    _findProfile(state, profileId);
-    final raw = (state['progress'] as Map)[_key(profileId, grade, lessonId)];
-    if (raw == null) return null;
-    final result = LessonProgress.fromJson(Map<String, dynamic>.from(raw as Map));
-    if (result.profileId != profileId || result.grade != grade || result.lessonId != lessonId) {
-      throw StateError('Invalid profile-scoped progress');
-    }
-    return result;
-  }
-
-  /// A stable attemptId survives save retries; atomic updates prevent two
-  /// simultaneous taps/reloads from incrementing attempts twice.
-  Future<LessonProgress> recordResult({
-    required String profileId,
-    required int grade,
-    required int lessonId,
-    required String attemptId,
-    required int correct,
-    required int total,
-    String subjectCode = '',
-    List<int> wrongQuestionIds = const [],
-    DateTime? completedAt,
-  }) async {
-    _checkGrade(grade);
-    if (profileId.isEmpty ||
-        lessonId <= 0 ||
-        attemptId.trim().isEmpty ||
-        total <= 0 ||
-        correct < 0 ||
-        correct > total ||
-        wrongQuestionIds.length > total ||
-        wrongQuestionIds.toSet().length != wrongQuestionIds.length) {
-      throw ArgumentError('Invalid local practice result');
-    }
-    if (profileId == defaultProfileId) await _migrateLegacy(grade, lessonId);
-    final timestamp = (completedAt ?? DateTime.now()).toUtc().toIso8601String();
-    return _mutate((state) {
-      _findProfile(state, profileId);
-      final data = state['progress'] as Map;
-      final key = _key(profileId, grade, lessonId);
-      final previous = data[key] == null
-          ? null
-          : LessonProgress.fromJson(Map<String, dynamic>.from(data[key] as Map));
-      if (previous != null && previous.attemptIds.contains(attemptId)) {
-        return previous;
-      }
-      final history = [
-        ...?previous?.recentHistory,
-        {
-          'id': attemptId,
-          'correct': correct,
-          'total': total,
-          'at': timestamp,
-          'wrongQuestionIds': wrongQuestionIds
-        }
-      ];
-      final result = LessonProgress(
-        profileId: profileId,
-        grade: grade,
-        lessonId: lessonId,
-        subjectCode: subjectCode.isNotEmpty ? subjectCode : previous?.subjectCode ?? '',
-        attempts: (previous?.attempts ?? 0) + 1,
-        bestCorrect: max(previous?.bestCorrect ?? 0, correct),
-        totalQuestions: total,
-        updatedAt: timestamp,
-        // Keep IDs even when compact history is pruned, for durable dedupe.
-        attemptIds: [...?previous?.attemptIds, attemptId],
-        wrongQuestionIds: List<int>.from(wrongQuestionIds),
-        recentHistory: history.length <= 20 ? history : history.sublist(history.length - 20),
-      );
-      data[key] = result.toJson();
-      return result;
-    });
-  }
-
-  Future<List<LessonProgress>> progressFor(
-      String profileId, {int? grade, String? subjectCode}) async {
-    final state = await _state();
-    _findProfile(state, profileId);
-    return (state['progress'] as Map).values
-        .map((v) => LessonProgress.fromJson(Map<String, dynamic>.from(v as Map)))
-        .where((p) =>
-            p.profileId == profileId &&
-            (grade == null || p.grade == grade) &&
-            (subjectCode == null || p.subjectCode == subjectCode))
-        .toList();
-  }
-
-  Future<int> totalXp(String profileId) async =>
-      (await progressFor(profileId)).fold<int>(0, (sum, p) => sum + p.bestXp);
-
-  Future<List<SubjectStatistics>> subjectStatistics(
-      String profileId, int grade) async {
-    final lessons = await progressFor(profileId, grade: grade);
-    final subjects = <String, List<LessonProgress>>{};
-    for (final lesson in lessons) {
-      subjects.putIfAbsent(lesson.subjectCode, () => []).add(lesson);
-    }
-    return subjects.entries
-        .map((entry) => SubjectStatistics(
-            entry.key,
-            entry.value.length,
-            entry.value.fold<int>(0, (sum, p) => sum + p.attempts),
-            entry.value.fold<int>(0, (sum, p) => sum + p.bestXp)))
-        .toList();
-  }
-
-  Future<List<LessonProgress>> dueForReview(
-      String profileId, DateTime now) async {
-    final lessons = await progressFor(profileId);
-    final due = lessons.where((p) => !p.reviewDueAt.isAfter(now.toUtc())).toList();
-    due.sort((a, b) => a.reviewDueAt.compareTo(b.reviewDueAt));
-    return due;
-  }
-}
-);
-    for (final key in keys) {
-      final match = pattern.firstMatch(key);
-      if (match == null) continue;
-      final raw = await storage.read(key);
-      if (raw == null) continue;
-      final grade = int.parse(match.group(1)!);
-      final lessonId = int.parse(match.group(2)!);
-      pending[_key(defaultProfileId, grade, lessonId)] =
-          _legacyProgress(raw, grade, lessonId);
-    }
-    if (pending.isEmpty) return;
-    await _mutate<bool>((state) {
-      final progress = state['progress'] as Map;
-      for (final entry in pending.entries) {
-        progress.putIfAbsent(entry.key, () => entry.value.toJson());
-      }
-      return true;
-    });
-  }
-
-  /// Import legacy best-XP for the default profile on first visit to a lesson.
-  /// Legacy values are not modified, so failures never destroy v1 data.
-  Future<void> _migrateLegacy(int grade, int lessonId) async {
-    final raw = await storage.read('progress:v1:$grade:$lessonId');
-    if (raw == null) return;
-    final legacy = Map<String, dynamic>.from(jsonDecode(raw) as Map);
-    if (legacy['grade'] != grade || legacy['lessonId'] != lessonId) {
-      throw StateError('Invalid legacy lesson progress');
-    }
-    await _mutate<bool>((state) {
-      final progress = state['progress'] as Map;
-      final key = _key(defaultProfileId, grade, lessonId);
-      if (!progress.containsKey(key)) {
-        final best = (legacy['bestCorrect'] as num).toInt();
-        final attempts = (legacy['attempts'] as num).toInt();
-        if (best < 0 || attempts < 0) throw StateError('Invalid legacy values');
-        progress[key] = LessonProgress(
-          profileId: defaultProfileId,
-          grade: grade,
-          lessonId: lessonId,
-          subjectCode: '',
-          attempts: attempts,
-          bestCorrect: best,
-          totalQuestions: (legacy['totalQuestions'] as num).toInt(),
-          updatedAt: legacy['updatedAt'] as String,
-          attemptIds: const [],
-          wrongQuestionIds: const [],
-          recentHistory: const [],
-        ).toJson();
-      }
       return true;
     });
   }
