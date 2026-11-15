@@ -128,3 +128,53 @@ jobs:
         run: cp test_browser/indexeddb_test.dart test/indexeddb_web_test.dart
       - name: Exercise actual IndexedDB in headless Chrome
         run: flutter test --platform chrome test/indexeddb_web_test.dart
+
+  prisma-compute-staging:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
+    needs: [clean-content, prisma-backend, flutter, packaged-pwa, indexeddb-chrome]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: prisma-compute-staging
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@v2
+      - name: Seed Ed25519 key into Prisma staging only if missing
+        shell: bash
+        run: |
+          set -euo pipefail
+          GENERATED_LEASE_KEY="$(openssl genpkey -algorithm ED25519 | base64 -w0)"
+          echo "::add-mask::$GENERATED_LEASE_KEY"
+          echo "LEASE_SIGNING_PRIVATE_KEY_PEM_BASE64=$GENERATED_LEASE_KEY" >> "$GITHUB_ENV"
+      - name: Deploy Compute staging with GitHub OIDC
+        id: prisma
+        uses: prisma/cloud-deploy-action@v1
+        with:
+          working-directory: backend-prisma
+          module: deploy/module.ts
+          stage: staging
+          install-command: npm install --no-audit --no-fund
+          build-command: npm run compute:build
+      - name: Require an actual staging URL
+        if: steps.prisma.outputs.outcome == 'succeeded'
+        env:
+          SERVICE_URL: ${{ steps.prisma.outputs.url }}
+        run: |
+          set -euo pipefail
+          test -n "$SERVICE_URL"
+          curl --fail --silent --show-error --max-time 20 "$SERVICE_URL/api/v1/health" |
+            jq -e '.ok == true and .status == "ready"'
+          curl --fail --silent --show-error --max-time 20 "$SERVICE_URL/api/v1/public-key" |
+            jq -e '.keyType == "ed25519-spki-der-base64url" and (.publicKey | length > 20)'
+      - name: Reject skipped or unsuccessful deployments
+        if: steps.prisma.outputs.outcome != 'succeeded'
+        run: |
+          echo "Prisma staging deploy did not succeed (inspect action summary)." >&2
+          exit 1
+
