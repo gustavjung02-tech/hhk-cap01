@@ -109,6 +109,8 @@ export function isAdmin(header: string | undefined, expected: string): boolean {
 export class LicenseService {
   constructor(private readonly config: LicenseConfig) {}
 
+  get pool() { return this.config.pool; }
+
   authorized(header: string | undefined) {
     return isAdmin(header, this.config.adminKey);
   }
@@ -186,7 +188,7 @@ export class LicenseService {
     });
   }
 
-  async redeem(value: unknown) {
+  async redeem(value: unknown, accountId?: string) {
     const p = value as Record<string, unknown> | null;
     if (!p || typeof p.token !== 'string' || !tokenPattern.test(p.token)) {
       throw new ApiFault(400, 'INVALID_TOKEN');
@@ -206,9 +208,9 @@ export class LicenseService {
       const licenseId = randomUUID();
       const policy = claim.policy;
       const inserted = await c.query<{valid_until: Date}>(
-        "INSERT INTO licenses (id,token_id,license_hash,source,entitled_grades,valid_until,max_devices,status) VALUES ($1,$2,$3,'book_gift',$4::smallint[],now() + $5::integer * interval '1 day',$6,'issued') RETURNING valid_until",
+        "INSERT INTO licenses (id,token_id,license_hash,source,entitled_grades,valid_until,max_devices,status,account_id) VALUES ($1,$2,$3,'book_gift',$4::smallint[],now() + $5::integer * interval '1 day',$6,'issued',$7) RETURNING valid_until",
         [licenseId, claim.id, digest(licenseKey), policy.grades, policy.validDays,
-         policy.maxDevices]
+         policy.maxDevices, accountId ?? null]
       );
       await c.query(
         "UPDATE claim_tokens SET status='redeemed',redeemed_at=now() WHERE id=$1",

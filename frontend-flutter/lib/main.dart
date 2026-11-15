@@ -4,6 +4,7 @@ import 'data/catalog_repository.dart';
 import 'data/local_store.dart';
 import 'data/study_ledger.dart';
 import 'features/study/lesson_page.dart';
+import 'features/account/account_page.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -161,7 +162,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final pages = [_homePage(), _curriculumPage(), _settingsPage()];
+    final pages = [_homePage(), _curriculumPage(), const AccountPage(), _settingsPage()];
     return Scaffold(
       appBar: AppBar(
           title: const Row(children: [
@@ -217,6 +218,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: Icon(Icons.menu_book_outlined),
                 selectedIcon: Icon(Icons.menu_book),
                 label: 'Môn học'),
+            NavigationDestination(
+                icon: Icon(Icons.manage_accounts_outlined),
+                selectedIcon: Icon(Icons.manage_accounts),
+                label: 'Tài khoản'),
             NavigationDestination(
                 icon: Icon(Icons.settings_outlined),
                 selectedIcon: Icon(Icons.settings),
@@ -371,9 +376,9 @@ class _HomeScreenState extends State<HomeScreen> {
         const Card(
             child: ListTile(
                 leading: Icon(Icons.key_outlined),
-                title: Text('Quà tặng từ lốc 20 cuốn'),
+                title: Text('Quản lý key trong tài khoản'),
                 subtitle: Text(
-                    'QR → website công ty → key. Kích hoạt sẽ tích hợp sau khi server an toàn.'))),
+                    'Mở tab Tài khoản để đăng nhập, quét QR và quản lý key.'))),
         const Card(
             child: ListTile(
                 leading: Icon(Icons.privacy_tip_outlined),

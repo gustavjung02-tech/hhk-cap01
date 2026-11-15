@@ -66,9 +66,12 @@ if (!url) {
     const quotaSql=readFileSync(new URL('../../db-prisma/migrations/0002_device_limit.sql',
                                        import.meta.url),'utf8');
     await pool.query(quotaSql);
+    const accountSql = readFileSync(new URL('../../db-prisma/migrations/0003_accounts.sql',
+                                          import.meta.url), 'utf8');
+    await pool.query(accountSql);
   });
   beforeEach(async () => {
-    await pool.query('TRUNCATE TABLE license_audit,device_activations,licenses,claim_tokens,reward_campaigns,print_batches RESTART IDENTITY CASCADE');
+    await pool.query('TRUNCATE TABLE license_audit,device_activations,licenses,claim_tokens,reward_campaigns,print_batches,account_sessions,app_accounts RESTART IDENTITY CASCADE');
   });
   after(async () => {await pool.end();});
 
@@ -185,4 +188,92 @@ if (!url) {
       {licenseId:claim.body.licenseId},true)).status,200);
     assert.equal((await pool.query('SELECT count(*)::int AS n FROM device_activations WHERE active=true')).rows[0].n,0);
   });
+
+  test('real user accounts own the key inventory and QR redemption; keys never appear in list', async () => {
+    const email = 'test.user@example.test';
+    const password = 'staging_only_secure_passphrase_123';
+    const register = await json('/api/v1/accounts/register', {email: ' Test.User@Example.Test ', password});
+    assert.equal(register.status, 200, JSON.stringify(register.body));
+    assert.equal(register.body.account.email, email);
+    assert.equal((await json('/api/v1/accounts/register', {email, password})).body.code,
+      'ACCOUNT_EXISTS');
+    const denied = await json('/api/v1/account/claims/redeem', {token: 'invalid'});
+    assert.equal(denied.status, 401);
+    assert.equal((await json('/api/v1/accounts/login', {email, password: 'bad-password'})).status, 401);
+    const logged = await json('/api/v1/accounts/login', {email, password});
+    assert.equal(logged.status, 200);
+    assert.match(logged.body.sessionToken, /^sess_[A-Za-z0-9_-]{43}$/);
+    const bearer = logged.body.sessionToken as string;
+    const call = async (route: string, payload: unknown) => {
+      const response = await app.request(route, {method: 'POST', headers: {
+        authorization: 'Bearer ' + bearer, 'content-type': 'application/json'
+      }, body: JSON.stringify(payload)});
+      return {status: response.status, body: await response.json() as Record<string,any>};
+    };
+    const get = async (route: string) => {
+      const response = await app.request(route, {headers: {authorization: 'Bearer ' + bearer}});
+      return {status:response.status, body:await response.json() as Record<string,any>};
+    };
+    assert.equal((await get('/api/v1/account/me')).body.account.email, email);
+    const tokens = await batch(await campaign());
+    const claimed = await call('/api/v1/account/claims/redeem', {token: tokens[0]});
+    assert.equal(claimed.status, 200, JSON.stringify(claimed.body));
+    assert.equal((await call('/api/v1/account/claims/redeem', {token: tokens[0]})).status, 409);
+    const inventory = await get('/api/v1/account/keys');
+    assert.equal(inventory.status, 200);
+    assert.equal(inventory.body.keys.length, 1);
+    assert.equal(inventory.body.keys[0].id, claimed.body.licenseId);
+    assert.deepEqual(inventory.body.keys[0].grades, [1,3]);
+    assert.equal(inventory.body.keys[0].activeDevices, 0);
+    assert.equal(JSON.stringify(inventory.body).includes('lic_'), false,
+      'Account inventory must never disclose raw license bearer keys');
+    // Linking an old unclaimed license is permitted exactly once for its owner.
+    const oldToken = (await batch(await campaign()))[0];
+    const old = await redeem(oldToken);
+    assert.equal(old.status, 200);
+    assert.equal((await call('/api/v1/account/keys/link',
+      {licenseKey:old.body.licenseKey})).status, 200);
+    assert.equal((await call('/api/v1/account/keys/link',
+      {licenseKey:old.body.licenseKey})).status, 200);
+    assert.equal((await get('/api/v1/account/keys')).body.keys.length, 2);
+    await json('/api/v1/accounts/register',
+      {email:'another@example.test', password: 'another-secure-passphrase-123'});
+    const other = await json('/api/v1/accounts/login',
+      {email:'another@example.test', password: 'another-secure-passphrase-123'});
+    const otherToken = other.body.sessionToken as string;
+    const otherList = await app.request('/api/v1/account/keys',
+      {headers:{authorization:'Bearer '+otherToken}});
+    assert.deepEqual((await otherList.json()).keys, []);
+    const otherLink = await app.request('/api/v1/account/keys/link', {method:'POST',
+      headers:{authorization:'Bearer '+otherToken,'content-type':'application/json'},
+      body:JSON.stringify({licenseKey:old.body.licenseKey})});
+    assert.equal(otherLink.status, 409);
+    assert.equal((await otherLink.json()).code, 'KEY_ALREADY_LINKED');
+    assert.equal((await call('/api/v1/account/logout', {})).status, 200);
+    assert.equal((await get('/api/v1/account/keys')).status, 401);
+  });
+
+  test('account input validation, password hashing, login lockout and CORS policy', async () => {
+    assert.equal((await json('/api/v1/accounts/register',
+      {email:'bad-email',password:'valid-password-1234'})).body.code,'INVALID_EMAIL');
+    assert.equal((await json('/api/v1/accounts/register',
+      {email:'safe@example.test',password:'short'})).body.code,'WEAK_PASSWORD');
+    assert.equal((await json('/api/v1/accounts/register',
+      {email:'safe@example.test',password:'valid-password-1234'})).status,200);
+    const row = await pool.query('SELECT password_hash,password_salt FROM app_accounts WHERE email=$1',
+      ['safe@example.test']);
+    assert.equal(row.rows[0].password_hash.length,64);
+    assert.equal(row.rows[0].password_salt.length,16);
+    for (let i=0;i<5;i++) {
+      assert.equal((await json('/api/v1/accounts/login',
+        {email:'safe@example.test',password:'incorrect-password'})).status,401);
+    }
+    assert.equal((await json('/api/v1/accounts/login',
+      {email:'safe@example.test',password:'valid-password-1234'})).body.code,'ACCOUNT_LOCKED');
+    const untrusted = await app.request('/api/v1/account/keys', {method:'OPTIONS',
+      headers:{origin:'https://attacker.example', 'access-control-request-method':'GET'}});
+    assert.notEqual(untrusted.headers.get('access-control-allow-origin'),
+      'https://attacker.example');
+  });
+
 }

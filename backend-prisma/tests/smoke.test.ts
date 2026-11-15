@@ -19,3 +19,13 @@ test('claim and license are never usable before a configured database', async ()
 test('the Hono default export provides the Vercel-compatible fetch handler', () => {
   assert.equal(typeof app.fetch, 'function');
 });
+
+test('account login and inventory fail closed when database configuration is missing', async () => {
+  const login = await app.request('/api/v1/accounts/login', {
+    method: 'POST', headers: {'content-type': 'application/json'},
+    body: JSON.stringify({email: 'user@example.test', password: 'not-a-real-password'})
+  });
+  assert.equal(login.status,503);
+  assert.equal((await login.json()).code,'NOT_CONFIGURED');
+  assert.equal((await app.request('/api/v1/account/keys')).status,503);
+});

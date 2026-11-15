@@ -6,6 +6,8 @@
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>HHK cần camera để quét QR trên lốc tập và nhận key vào tài khoản.</string>
 	<key>CFBundleDisplayName</key>
 	<string>Hhk Cap01</string>
 	<key>CFBundleExecutable</key>

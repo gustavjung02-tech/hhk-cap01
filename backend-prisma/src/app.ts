@@ -1,4 +1,6 @@
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
+import { cors } from 'hono/cors';
+import { AccountService, type AccountIdentity } from './account.js';
 import { bodyLimit } from 'hono/body-limit';
 import {
   ApiFault, LicenseService, postgresError, serviceFromEnv
@@ -8,6 +10,16 @@ type Body = Record<string, unknown>;
 
 export function createApp(service?: LicenseService) {
   const app = new Hono();
+  const accounts = service ? new AccountService(service.pool) : undefined;
+  // Browser access is restricted to explicitly approved app origins.
+  const trustedOrigins = new Set((process.env.HHK_ALLOWED_ORIGINS ?? '')
+      .split(',').map(origin => origin.trim()).filter(Boolean));
+  app.use('/api/v1/*', cors({
+    origin: origin => trustedOrigins.has(origin) ? origin : '',
+    allowHeaders: ['Content-Type', 'Authorization'],
+    allowMethods: ['GET', 'POST', 'OPTIONS'],
+    maxAge: 600,
+  }));
   app.use('/api/v1/*', bodyLimit({
     maxSize: 16384,
     onError: c => c.json({ok: false, code: 'BODY_TOO_LARGE'}, 413)
@@ -47,6 +59,62 @@ export function createApp(service?: LicenseService) {
       leaseSchema: 'hhk-offline-license-v1'
     });
   });
+  // Auth is always server-backed. No local-only account or client-side admin bypass.
+  const accountError = (c: Context, error: unknown) => {
+    if (error instanceof ApiFault) {
+      return c.json({ok: false, code: error.code}, error.status);
+    }
+    return c.json({ok: false, code: 'SERVICE_UNAVAILABLE'}, 503);
+  };
+  const withAccount = async (
+    c: Context,
+    authenticated: boolean,
+    work: (body: Body, identity?: AccountIdentity) => Promise<object>
+  ) => {
+    if (!accounts || !service) return c.json({ok: false, code: 'NOT_CONFIGURED'}, 503);
+    try {
+      const identity = authenticated
+        ? await accounts.authenticate(c.req.header('authorization')) : undefined;
+      let body: unknown;
+      try { body = await c.req.json(); } catch {
+        return c.json({ok: false, code: 'INVALID_BODY'}, 400);
+      }
+      if (!body || Array.isArray(body) || typeof body !== 'object' ||
+          JSON.stringify(body).length > 16384) {
+        return c.json({ok: false, code: 'INVALID_BODY'}, 400);
+      }
+      return c.json({ok: true, ...await work(body as Body, identity)});
+    } catch (error) { return accountError(c, error); }
+  };
+  app.post('/api/v1/accounts/register',
+    c => withAccount(c, false, body => accounts!.register(body)));
+  app.post('/api/v1/accounts/login',
+    c => withAccount(c, false, body => accounts!.login(body)));
+  app.get('/api/v1/account/me', async c => {
+    if (!accounts) return c.json({ok: false, code: 'NOT_CONFIGURED'}, 503);
+    try {
+      return c.json({ok: true, account: await accounts.authenticate(c.req.header('authorization'))});
+    } catch (error) { return accountError(c, error); }
+  });
+  app.get('/api/v1/account/keys', async c => {
+    if (!accounts) return c.json({ok: false, code: 'NOT_CONFIGURED'}, 503);
+    try {
+      const identity = await accounts.authenticate(c.req.header('authorization'));
+      return c.json({ok: true, ...await accounts.keys(identity.id)});
+    } catch (error) { return accountError(c, error); }
+  });
+  app.post('/api/v1/account/logout', async c => {
+    if (!accounts) return c.json({ok: false, code: 'NOT_CONFIGURED'}, 503);
+    try {
+      const header = c.req.header('authorization');
+      const identity = await accounts.authenticate(header);
+      return c.json({ok: true, ...await accounts.logout(header, identity.id)});
+    } catch (error) { return accountError(c, error); }
+  });
+  app.post('/api/v1/account/keys/link', c => withAccount(c, true,
+    (body, identity) => accounts!.linkKey(identity!.id, body)));
+  app.post('/api/v1/account/claims/redeem', c => withAccount(c, true,
+    (body, identity) => service!.redeem(body, identity!.id)));
   for (const [path, handler] of Object.entries(handlers)) {
     app.post(path, async c => {
       if (!service) return c.json({ok: false, code: 'NOT_CONFIGURED'}, 503);
