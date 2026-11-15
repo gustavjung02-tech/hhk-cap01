@@ -1,4 +1,7 @@
 # BÀN GIAO HHK CAP-01 → CHAT MỚI
+
+> **Checkpoint cập nhật 15/11/2026 — #6:** Cơ sở dữ liệu `hhk-staging` hiện **READY**, đã chạy migrations 0001/0002; CI staging `11de041a` xanh. Prisma Compute bị chặn bởi `HostedStateBootstrapError` (existing unmanaged DB), không phải do thiếu database. Đã chọn backend Hono trên Vercel riêng, kết nối DB Prisma cũ; chỉ phát hành khi CI của commit mới xanh. Những dòng lịch sử phía dưới ghi "chưa có DB" là **đã lỗi thời**, không dùng làm trạng thái triển khai hiện hành. **Không thay đổi main/production.**
+
 **Cập nhật:** 15/11/2026, UTC+7. **Nguồn sự thật về task:** [EPIC #1](https://github.com/gustavjung02-tech/hhk-cap01/issues/1) + [Issues #2–#11](https://github.com/gustavjung02-tech/hhk-cap01/issues).
 
 ## Thông tin cố định, không hỏi lại

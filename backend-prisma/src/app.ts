@@ -15,7 +15,7 @@ export function createApp(service?: LicenseService) {
 
   app.get('/api/v1/health', async c => {
     if (!service) {
-      return c.json({ok: true, service: 'hhk-license', status: 'configuration_required'});
+      return c.json({ok: false, service: 'hhk-license', status: 'configuration_required'}, 503);
     }
     try {
       await service.ping();

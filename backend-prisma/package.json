@@ -10,7 +10,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
-    "start": "node dist/server.js",
+    "start": "node dist/serve-node.js",
     "compute:typecheck": "tsc -p deploy/tsconfig.json --noEmit",
     "compute:build": "bun build deploy/compute-server.ts --target=bun --outfile deploy/dist/compute-server.mjs"
   },

@@ -1,5 +1,16 @@
 # HHK license backend — staging
 
+## Staging backend on Vercel (Issue #6; current deployment path, 2026-11-15)
+
+**Decision:** retain the existing Prisma Postgres database `hhk-staging` in `gus-02`; deploy Hono as a separate Vercel project **hhk-cap01-license-staging**. No Composer bootstrap, no database recreation, and no production migration. The previous Composer deployment experiment is not the active release path.
+
+- Vercel team: `gustavjung02-techs-projects`; framework: **hono**; root directory: `backend-prisma`; Node 24.x; function region: `sin1` (Singapore); Git auto-deploy disabled by `backend-prisma/vercel.json`. The source entry `src/app.ts` exports the native Hono fetch handler. `src/serve-node.ts` remains the standalone local Node process, deliberately **not** named `src/server.ts` to avoid ambiguous Vercel framework entry detection.
+- Staging-only Vercel encrypted env: `DATABASE_URL` (the **direct PostgreSQL connection string** for database `db_l4ds0m8jnxux66bd3erlnvqe`), `ADMIN_API_KEY` (32+ random chars), `LEASE_SIGNING_PRIVATE_KEY_PEM_BASE64` (Ed25519 PKCS8 PEM encoded base64). Never expose these via Flutter, public routes, GitHub code, screenshots, or logs.
+- Release process: commit to `staging` -> verify successful push CI for **exact SHA** -> **manual preview deployment** on the dedicated Vercel project -> check `/api/v1/health` status `ready` and `/api/v1/public-key` -> conduct E2E QR/license checks with controlled staging test records -> report URL in Issue #6. Do not auto-promote to the PWA production domain.
+- A missing backend configuration now correctly returns **503** at health (instead of misleading `200 configuration_required`); all QR/license mutation routes also fail closed. A healthy `200 ready` requires a real successful PostgreSQL ping.
+- The Prisma staging DB migration ledger is retained as-is; **do not run migrations during the Vercel deployment**. Compute-specific files are historical until Composer offers supported non-destructive resource adoption.
+
+
 This Node 24 + Hono + pg service uses Prisma Postgres within project gus-02.
 The source is implemented and tested against a disposable PostgreSQL CI database.
 Do not mistake source-ready for production-deployed: a Prisma Compute app does not
