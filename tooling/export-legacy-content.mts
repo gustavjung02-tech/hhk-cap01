@@ -3,8 +3,13 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { seedLessons, seedLessonCards, seedQuestions } from './src/data/seedData.ts';
-import { allSubjects } from './src/data/subjects.ts';
+import * as seedModule from './src/data/seedData.ts';
+import * as subjectModule from './src/data/subjects.ts';
+// The original TS data files are treated as CommonJS by the legacy package.
+const seed = (seedModule as any).default ?? seedModule;
+const subjects = (subjectModule as any).default ?? subjectModule;
+const { seedLessons, seedLessonCards, seedQuestions } = seed;
+const { allSubjects } = subjects;
 
 const EXPECTED = '7ab83326db4ab3141e2d42aeefe2ea182f13452b';
 const rev = execFileSync('git', ['rev-parse', 'HEAD'], {encoding:'utf8'}).trim();

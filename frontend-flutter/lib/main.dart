@@ -183,6 +183,6 @@ class _HomeScreenState extends State<HomeScreen> {
             builder:(_)=>LessonPage(pack:pack,lesson:lesson))),
         ));
       }),
-    ))));
+    )));
   }
 }
