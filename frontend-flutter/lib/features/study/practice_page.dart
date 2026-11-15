@@ -166,7 +166,9 @@ class _PracticePageState extends State<PracticePage> {
                   if (selected == null || selected!.trim().isEmpty) {
                     return;
                   }
-                  if (QuizEvaluator.correct(question, selected!)) correctCount++;
+                  if (QuizEvaluator.correct(question, selected!)) {
+                    correctCount++;
+                  }
                   setState(() => submitted = true);
                 },
           child: Text(submitted
