@@ -344,7 +344,7 @@ class StudyLedger {
   }
 
   Future<int> totalXp(String profileId) async =>
-      (await progressFor(profileId)).fold(0, (sum, p) => sum + p.bestXp);
+      (await progressFor(profileId)).fold<int>(0, (sum, p) => sum + p.bestXp);
 
   Future<List<SubjectStatistics>> subjectStatistics(
       String profileId, int grade) async {
