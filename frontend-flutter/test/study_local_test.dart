@@ -61,6 +61,25 @@ void main() {
     }), false);
   });
 
+  test('multi_choice must select exact set, never partial/text', () {
+    final multi = {
+      'questionType': 'multi_choice',
+      'optionsJson': jsonEncode(['Hello', 'Goodbye', 'Hi', 'Dog']),
+      'correctAnswer': 'Hello,Hi',
+    };
+    expect(QuizEvaluator.canGrade(multi), isTrue);
+    expect(QuizEvaluator.correct(multi, 'Hello,Hi'), isFalse);
+    expect(QuizEvaluator.correctMultiple(multi, {'Hi', 'Hello'}), isTrue);
+    expect(QuizEvaluator.correctMultiple(multi, {'Hello'}), isFalse);
+    expect(QuizEvaluator.correctMultiple(multi, {'Hi', 'Hello', 'Dog'}), isFalse);
+    expect(QuizEvaluator.correctMultiple(multi, {'Hi', 'Hello', 'Wrong'}), isFalse);
+    expect(QuizEvaluator.canGrade({
+      ...multi,
+      'optionsJson': jsonEncode(['Hello,Hi', 'Dog']),
+    }), isFalse);
+    expect(QuizEvaluator.canGrade({...multi, 'correctAnswer': 'Hi,Hi'}), isFalse);
+  });
+
   test('3 profiles / 2 grades, restart, XP, retry and review isolation', () async {
     final store = InMemoryStore();
     await store.open();

@@ -37,6 +37,21 @@ const validAnswer = (q) => {
       return false;
     }
   }
+  if (q.questionType === 'multi_choice') {
+    try {
+      const options = JSON.parse(q.optionsJson ?? '');
+      if (!Array.isArray(options) || options.length < 2 ||
+          options.some((x) => typeof x !== 'string' ||
+            !normalize(x) || x.includes(',')) ||
+          new Set(options.map(normalize)).size !== options.length) return false;
+      const answers = String(q.correctAnswer ?? '').split(',').map(normalize);
+      return answers.length >= 2 &&
+        new Set(answers).size === answers.length &&
+        answers.every((x) => options.map(normalize).includes(x));
+    } catch {
+      return false;
+    }
+  }
   return false;
 };
 

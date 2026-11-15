@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:math';
 import 'package:material_ui/material_ui.dart';
 import '../../data/study_ledger.dart';
@@ -33,10 +32,16 @@ class _PracticePageState extends State<PracticePage> {
   int index = 0;
   int correctCount = 0;
   String? selected;
+  final Set<String> selectedMultiple = <String>{};
   bool submitted = false;
   bool saving = false;
   LessonProgress? savedProgress;
   String? storageError;
+
+  bool _answerCorrect(Map<String, dynamic> question) =>
+      question['questionType'] == 'multi_choice'
+          ? QuizEvaluator.correctMultiple(question, selectedMultiple)
+          : QuizEvaluator.correct(question, selected ?? '');
 
   Future<void> _finish() async {
     if (saving || savedProgress != null) return;
@@ -97,15 +102,8 @@ class _PracticePageState extends State<PracticePage> {
     final question = widget.questions[index];
     final kind = question['questionType']?.toString();
     List<String> options = [];
-    if (kind == 'single_choice') {
-      try {
-        options =
-            (jsonDecode(question['optionsJson']?.toString() ?? '[]') as List)
-                .map((value) => value.toString())
-                .toList(growable: false);
-      } catch (_) {
-        options = [];
-      }
+    if (kind == 'single_choice' || kind == 'multi_choice') {
+      options = QuizEvaluator.options(question);
     } else if (kind == 'true_false') {
       options = const ['Đúng', 'Sai'];
     }
@@ -125,19 +123,36 @@ class _PracticePageState extends State<PracticePage> {
                 style: Theme.of(context).textTheme.titleLarge),
           ),
         ),
+        if (kind == 'multi_choice')
+          const Text('Chọn tất cả đáp án đúng'),
         if (options.isNotEmpty)
-          ...options.map((option) => Card(
-                child: ListTile(
-                  title: Text(option),
-                  selected: selected == option,
-                  leading: Icon(selected == option
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_unchecked),
-                  onTap: submitted
-                      ? null
-                      : () => setState(() => selected = option),
-                ),
-              ))
+          ...options.map((option) {
+            final isMulti = kind == 'multi_choice';
+            final active =
+                isMulti ? selectedMultiple.contains(option) : selected == option;
+            return Card(
+              child: ListTile(
+                title: Text(option),
+                selected: active,
+                leading: Icon(isMulti
+                    ? (active ? Icons.check_box : Icons.check_box_outline_blank)
+                    : (active
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked)),
+                onTap: submitted
+                    ? null
+                    : () => setState(() {
+                          if (isMulti) {
+                            if (!selectedMultiple.add(option)) {
+                              selectedMultiple.remove(option);
+                            }
+                          } else {
+                            selected = option;
+                          }
+                        }),
+              ),
+            );
+          })
         else
           TextField(
             key: ValueKey('answer-$index'),
@@ -157,7 +172,7 @@ class _PracticePageState extends State<PracticePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                        QuizEvaluator.correct(question, selected ?? '')
+                        _answerCorrect(question)
                             ? 'Chính xác!'
                             : 'Chưa đúng. Đáp án: ${question['correctAnswer']}',
                         style: Theme.of(context).textTheme.titleMedium),
@@ -177,15 +192,18 @@ class _PracticePageState extends State<PracticePage> {
                     setState(() {
                       index++;
                       selected = null;
+                      selectedMultiple.clear();
                       submitted = false;
                     });
                   }
                 }
               : () {
-                  if (selected == null || selected!.trim().isEmpty) {
+                  if (kind == 'multi_choice'
+                      ? selectedMultiple.isEmpty
+                      : selected == null || selected!.trim().isEmpty) {
                     return;
                   }
-                  if (QuizEvaluator.correct(question, selected!)) {
+                  if (_answerCorrect(question)) {
                     correctCount++;
                   } else if (question['id'] is num) {
                     wrongQuestionIds.add((question['id'] as num).toInt());
