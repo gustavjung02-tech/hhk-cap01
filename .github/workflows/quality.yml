@@ -84,3 +84,24 @@ jobs:
           path: ${{ runner.temp }}/hhk-pwa-artifact-check
       - name: Verify packaged PWA assets (not only build directory)
         run: node tooling/verify-pwa.mjs "$RUNNER_TEMP/hhk-pwa-artifact-check"
+
+  indexeddb-chrome:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend-flutter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate Flutter Web scaffolding
+        run: flutter create --project-name hhk_cap01 --platforms=web .
+      - run: flutter pub get
+      - name: Detect browser
+        run: echo "CHROME_EXECUTABLE=$(command -v google-chrome || command -v chromium || command -v chromium-browser)" >> "$GITHUB_ENV"
+      - name: Check integration test formatting
+        run: dart format --output=none --set-exit-if-changed test_browser
+      - name: Exercise actual IndexedDB in headless Chrome
+        run: flutter test --platform chrome test_browser/indexeddb_test.dart
