@@ -158,7 +158,7 @@ jobs:
         with:
           working-directory: backend-prisma
           module: deploy/module.ts
-          stage: staging
+          environment: staging
           install-command: npm install --no-audit --no-fund
           build-command: npm run compute:build
       - name: Require an actual staging URL

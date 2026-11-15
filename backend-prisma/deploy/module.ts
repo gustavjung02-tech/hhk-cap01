@@ -8,7 +8,7 @@ import licenseApi from './service.ts';
 export default module('gus-02', ({ provision }) => {
   provision(licenseApi, {
     input: {
-      databaseUrl: envSecret('DATABASE_URL'),
+      databaseUrl: envSecret('HHK_LICENSE_DATABASE_URL'),
       adminKey: envSecret('ADMIN_API_KEY'),
       signingKey: envSecret('LEASE_SIGNING_PRIVATE_KEY_PEM_BASE64'),
     },

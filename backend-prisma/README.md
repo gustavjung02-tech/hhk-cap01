@@ -8,6 +8,7 @@ yet exist, and public production license issuance must remain disabled.
 ## Required backend-only environment
 
 - DATABASE_URL — direct PostgreSQL URL for hhk-staging. Do not place this in Flutter or public Vercel.
+- Prisma Compute **staging** Composer uses `HHK_LICENSE_DATABASE_URL` instead of reserved `DATABASE_URL`. This is a branch-scoped secret and points to the same existing hhk-staging database.
 - ADMIN_API_KEY — a random administrative token of at least 32 characters.
 - LEASE_SIGNING_PRIVATE_KEY_PEM_BASE64 — base64 of an Ed25519 private-key PEM.
 - PORT — optional, defaults to 3000.
