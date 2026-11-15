@@ -105,49 +105,7 @@ class QuizEvaluator {
       if (tokens.length != left.length) return null;
       final mapping = <int, int>{};
       final usedRight = <int>{};
-      final pattern = RegExp(r'^([0-9]+)-([0-9]+)
-    final expected = question['correctAnswer']?.toString() ?? '';
-    switch (question['questionType']?.toString()) {
-      case 'true_false':
-        return _boolean(expected) != null;
-      case 'fill_number':
-        return _number(expected) != null;
-      case 'multi_choice':
-        return _multipleExpected(question) != null;
-      case 'matching':
-        return matchingQuestion(question) != null;
-      case 'ordering':
-        return orderingQuestion(question) != null;
-      case 'single_choice':
-        final options = _options(question);
-        return options != null &&
-            options.any((option) => _normalize(option) == _normalize(expected));
-      default:
-        // Free text and unknown types remain excluded pending editorial rules.
-        return false;
-    }
-  }
-
-  static bool correct(Map<String, dynamic> question, String selected) {
-    if (!canGrade(question)) return false;
-    final expected = question['correctAnswer'].toString();
-    switch (question['questionType']?.toString()) {
-      case 'true_false':
-        final value = _boolean(selected);
-        return value != null && value == _boolean(expected);
-      case 'fill_number':
-        final value = _number(selected);
-        return value != null && value == _number(expected);
-      case 'single_choice':
-        final options = _options(question)!;
-        return options.any((option) => _normalize(option) == _normalize(selected)) &&
-            _normalize(selected) == _normalize(expected);
-      default:
-        return false;
-    }
-  }
-}
-);
+      final pattern = RegExp(r'^([0-9]+)-([0-9]+)$');
       for (final token in tokens) {
         final match = pattern.firstMatch(token.trim());
         if (match == null) return null;
