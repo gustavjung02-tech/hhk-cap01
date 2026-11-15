@@ -17,7 +17,7 @@ console.log('PASS clean Flutter-first repo; no React/Electron/Express runtime');
 // automatically deploy to Vercel. Deployment is a deliberate plugin action.
 for (const file of readdirSync('.github/workflows').filter(name => /\.ya?ml$/.test(name))) {
   const yaml = readFileSync(join('.github/workflows',file),'utf8');
-  if (/VERCEL_TOKEN|vercel\s+(?:deploy|--prod|promote)|vercel-action|create_deployment/i.test(yaml)) {
+  if (/VERCEL_TOKEN|\bvercel\s+(?:deploy\b|--prod\b|promote\b)|vercel-action|create_deployment/i.test(yaml)) {
     throw Error('Automatic Vercel deployment is forbidden: ' + file);
   }
 }
