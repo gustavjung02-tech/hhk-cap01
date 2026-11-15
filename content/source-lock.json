@@ -1,0 +1,8 @@
+{
+  "repository": "gustavjung01/cap-01",
+  "commit": "7ab83326db4ab3141e2d42aeefe2ea182f13452b",
+  "schema": "hhk-content-v1",
+  "sourceReadonly": true,
+  "importMode": "CI-checkout-to-JSON-only",
+  "notes": "Round-robin textbook fields must not be treated as editorially verified"
+}
