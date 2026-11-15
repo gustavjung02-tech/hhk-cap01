@@ -24,6 +24,11 @@ if (!config.rewrites.some(x => x.destination === '/index.html')) {
 if (config.git?.deploymentEnabled !== false) {
   throw Error('Vercel auto-deploy not disabled');
 }
+if (!config.headers?.some(item => item.source === '/hhk-sw.js' &&
+    item.headers?.some(header => header.key === 'Cache-Control' &&
+      header.value === 'no-cache, no-store, must-revalidate'))) {
+  throw Error('Missing mandatory service-worker no-cache header');
+}
 for (const name of ['main.dart.js','flutter_bootstrap.js','icons/Icon-192.png','icons/Icon-512.png']) {
   if (!existsSync(join(dir, name))) throw Error('Missing Flutter build asset ' + name);
 }
