@@ -1,0 +1,4 @@
+# Copy locally to .dev.vars; NEVER commit real values.
+DATABASE_URL=postgresql://placeholder
+LICENSE_SIGNING_PRIVATE_KEY=
+ALLOWED_ORIGINS=https://example.invalid
