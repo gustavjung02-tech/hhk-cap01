@@ -9,11 +9,11 @@ class WebIndexedDbStore implements LocalStore {
 
   @override
   Future<void> open() async {
-    _database ??= await idbFactoryWeb.open(dbName,
-      version: 1, onUpgradeNeeded: (event) {
-        final db = event.database;
-        if (!db.objectStoreNames.contains(table)) db.createObjectStore(table);
-      });
+    _database ??=
+        await idbFactoryWeb.open(dbName, version: 1, onUpgradeNeeded: (event) {
+      final db = event.database;
+      if (!db.objectStoreNames.contains(table)) db.createObjectStore(table);
+    });
   }
 
   Database get _db {
@@ -43,4 +43,5 @@ class WebIndexedDbStore implements LocalStore {
     _database = null;
   }
 }
+
 LocalStore createLocalStore() => WebIndexedDbStore();

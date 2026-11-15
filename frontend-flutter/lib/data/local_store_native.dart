@@ -10,7 +10,8 @@ class SqliteStore implements LocalStore {
       path.join(await getDatabasesPath(), 'hhk_cap01.db'),
       version: 1,
       onCreate: (db, version) async {
-        await db.execute('CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
+        await db.execute(
+            'CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
       },
     );
   }
@@ -23,8 +24,8 @@ class SqliteStore implements LocalStore {
 
   @override
   Future<String?> read(String key) async {
-    final rows = await _db.query('settings', columns: ['value'],
-        where: 'key = ?', whereArgs: [key], limit: 1);
+    final rows = await _db.query('settings',
+        columns: ['value'], where: 'key = ?', whereArgs: [key], limit: 1);
     return rows.isEmpty ? null : rows.first['value'] as String?;
   }
 
@@ -40,4 +41,5 @@ class SqliteStore implements LocalStore {
     _database = null;
   }
 }
+
 LocalStore createLocalStore() => SqliteStore();
