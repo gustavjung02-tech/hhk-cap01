@@ -51,17 +51,14 @@ npm run build
 npm start
 
 GitHub Actions starts disposable postgres:16, applies the exact versioned
-db-prisma/migrations/0001_license_only.sql migration and tests concurrent QR
-redemption, device capacity, signature checks, transfer and revocation.
+db-prisma/migrations/0001_license_only.sql and 0002_device_limit.sql migrations
+and tests concurrent QR redemption, database quota bypass prevention,
+signature checks, transfer and revocation.
 No CI test writes to the real hhk-staging or production database.
 
 ## Deployment gate
 
-- Prisma Console Git setup is inspecting repository root (Flutter monorepo)
-  and reports no root package manager. Do not change the Flutter root to a Node
-  package simply to silence this warning. Target backend-prisma explicitly
-  with a Prisma 8 Composer declaration, authenticated Prisma CLI and isolated
-  branch environment, or an equivalent approved backend-only deployment.
+- Repository root now has an npm workspace manifest pointing **only** to backend-prisma. This helps Prisma Console detect the package manager without converting Flutter to Node. Deploy the backend-prisma workspace explicitly through Prisma 8 Composer and an authenticated staging-only environment. Never deploy the Flutter app as a Node server.
 - Prisma Compute app creation/artifact upload is not available via the
   current Prisma plugin; no fake live endpoint is claimed.
 - When runtime exists, configure secrets only on Prisma staging branch,

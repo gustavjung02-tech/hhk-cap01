@@ -9,13 +9,15 @@ Project: [gus-02](https://console.prisma.io/ph998iyve9m9q7pz3cc2q3mu/t5ke1mdd3u7
 - `hhk-staging`: Prisma Postgres `db_l4ds0m8jnxux66bd3erlnvqe`, region `ap-southeast-1`, status **ready**, belongs to project `gus-02`.
 - Before migration: 0 user tables under schema `public`.
 - Applied exactly `db-prisma/migrations/0001_license_only.sql` to **hhk-staging only**. Live database introspection confirms 6 tables: `print_batches`, `reward_campaigns`, `claim_tokens`, `licenses`, `device_activations`, `license_audit`.
-- Catalog checks confirm foreign-key, uniqueness, check constraints and expected indexes (32 constraints and 15 indexes total).
-- Source migration is additive, wraps operations in a transaction, and does not create student, XP or AI chat records.
+- Catalog checks confirm foreign-key, uniqueness, check constraints and expected indexes (32 constraints and 15 indexes for 0001).
+- Applied **0002_device_limit.sql** after [CI green](https://github.com/gustavjung02-tech/hhk-cap01/actions/runs/43716503565) on staging only. Live queries confirm version ledger hhk_schema_migrations contains 0001/0002; triggers trg_hhk_device_limit and trg_hhk_license_limit exist on the intended tables.
+- Staging has zero batches, QR tokens, licenses or device activations after the migrations.
+- Both migrations are transactional and contain no student, XP or AI chat records.
 
 ## Not yet complete
 
-- Backend remains fail-closed and has no live Prisma Compute app. Root repo is a Flutter/Node monorepo, and Prisma Composer Git bootstrap currently reports **no package manager detected**. This message does **not** indicate a database failure. Future backend deployment must target `backend-prisma/` with a supported package/app build and implement authenticated transactional QR/license endpoints.
-- Constraint enforcement was inspected in the catalog; real transaction/concurrency/e2e tests, service integration and rollback drills remain required.
+- Backend QR/license endpoints are implemented in backend-prisma and exercised with disposable PostgreSQL 16 in CI, but no live Prisma Compute app exists. Root package.json now declares an npm workspace for backend-prisma, while Flutter continues to build independently. Prisma Compute still needs backend-targeted Composer deployment plus service/environment configuration; no production auto-deploy.
+- Transaction, concurrency, bad-signature, device-quota, transfer and revoke tests passed on CI PostgreSQL. Deployed service E2E tests, rate limits, release rollback, and production isolation checks remain required.
 - `main` needs its **own isolated database**, provisioning and migration only after staging tests and explicit production approval.
 - Keep `DATABASE_URL` and other credentials in backend secrets, never commit them or display them in frontend. Rotate the database connection credential exposed in the Prisma Console screenshot before real usage.
 
