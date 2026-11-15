@@ -165,7 +165,9 @@ class OfflineLicenseManager {
       }
       final payload = jsonDecode(utf8.decode(payloadBytes)) as Map<String, dynamic>;
       if (payload['kind'] != 'hhk-offline-license-v1' ||
-          payload['licenseId'] != licenseId) return false;
+          payload['licenseId'] != licenseId) {
+        return false;
+      }
       final issuedAt = DateTime.parse(payload['issuedAt'] as String).toUtc();
       final expiresAt = DateTime.parse(payload['expiresAt'] as String).toUtc();
       final current = (now ?? DateTime.now()).toUtc();
@@ -176,7 +178,9 @@ class OfflineLicenseManager {
       }
       final grades = (payload['grades'] as List).map((x) => (x as num).toInt()).toList();
       if (grades.isEmpty || grades.any((g) => g < 1 || g > 5) ||
-          (grade != null && !grades.contains(grade))) return false;
+          (grade != null && !grades.contains(grade))) {
+        return false;
+      }
       final device = await _device();
       final expected = await Sha256().hash(device.publicKey.bytes);
       final hex = expected.bytes.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
