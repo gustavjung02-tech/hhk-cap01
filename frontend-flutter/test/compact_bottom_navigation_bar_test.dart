@@ -28,7 +28,7 @@ void main() {
         CompactBottomNavigationBar.contentHeight + 34);
     expect(find.text('Trang chủ'), findsOneWidget);
     expect(find.text('Môn học'), findsOneWidget);
-    expect(find.text('Tài khoản'), findsOneWidget);
+    expect(find.text('Luyện tập'), findsOneWidget);
     expect(find.text('Cài đặt'), findsOneWidget);
   });
 
@@ -37,7 +37,7 @@ void main() {
     await render(tester, 0, (index) => selected = index);
     expect(tester.getSize(find.byType(NavigationBar)).height,
         CompactBottomNavigationBar.contentHeight);
-    await tester.tap(find.text('Tài khoản'));
+    await tester.tap(find.text('Luyện tập'))
     await tester.pump();
     expect(selected, 2);
   });

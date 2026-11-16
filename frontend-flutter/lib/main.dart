@@ -6,6 +6,11 @@ import 'data/study_ledger.dart';
 import 'data/offline_license.dart';
 import 'features/study/lesson_page.dart';
 import 'features/account/account_page.dart';
+import 'features/auth_gateway.dart';
+import 'features/legacy_feature_drawer.dart';
+import 'features/local_progress_page.dart';
+import 'features/study/practice_page.dart';
+import 'features/study/quiz_evaluator.dart';
 import 'widgets/compact_bottom_navigation_bar.dart';
 
 void main() {
@@ -20,12 +25,19 @@ class HhkApp extends StatelessWidget {
         title: 'Học Hứng Khởi',
         theme: HhkTheme.light,
         debugShowCheckedModeBanner: false,
-        home: const HomeScreen(),
+        home: AuthGateway(
+          buildApp: (session, signOut, api) => HomeScreen(
+            session: session, onSignedOut: signOut, api: api),
+        ),
       );
 }
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final AccountSession session;
+  final Future<void> Function() onSignedOut;
+  final AccountApi api;
+  const HomeScreen({super.key, required this.session,
+    required this.onSignedOut, required this.api});
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
@@ -173,42 +185,32 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final pages = [_homePage(), _curriculumPage(), AccountPage(onLicenseChanged: _refreshLicense), _settingsPage()];
+    final pages = [_homePage(), _curriculumPage(), _practiceHubPage(), _settingsPage()];
     return Scaffold(
+      drawer: LegacyFeatureDrawer(
+        profileName: activeProfile?.name ?? 'Học sinh',
+        grade: grade,
+        onSelect: _openLegacyFeature,
+      ),
       appBar: AppBar(
-          title: const Row(children: [
-            Icon(Icons.auto_stories_rounded, color: HhkTheme.orange),
-            SizedBox(width: 8),
-            Text('HHK CAP-01', style: TextStyle(fontWeight: FontWeight.w800)),
-          ]),
-          actions: [
-            if (activeProfile != null)
-              PopupMenuButton<String>(
-                tooltip: 'Chọn hồ sơ học sinh',
-                onSelected: (id) {
-                  if (id == 'create') {
-                    _createProfile();
-                  } else {
-                    _switchProfile(id);
-                  }
-                },
-                itemBuilder: (_) => [
-                  for (final profile in profiles)
-                    PopupMenuItem(
-                      value: profile.id,
-                      child: Text('${profile.name} • Lớp ${profile.grade}'),
-                    ),
-                  const PopupMenuDivider(),
-                  const PopupMenuItem(
-                      value: 'create', child: Text('Thêm hồ sơ')),
-                ],
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Center(
-                      child: Text('${activeProfile!.name} • Lớp $grade')),
-                ),
-              ),
-          ]),
+        leading: Builder(builder: (context) => IconButton(
+          key: const Key('open-feature-menu'),
+          tooltip: 'Mở menu tính năng',
+          icon: const Icon(Icons.menu),
+          onPressed: () => Scaffold.of(context).openDrawer(),
+        )),
+        title: const Text('Học Hứng Khởi',
+            style: TextStyle(fontWeight: FontWeight.w800)),
+        actions: [
+          IconButton(
+            key: const Key('open-account'),
+            tooltip: 'Tài khoản & key',
+            icon: const Icon(Icons.account_circle_outlined, size: 26),
+            onPressed: _openAccount,
+          ),
+          const SizedBox(width: 6),
+        ],
+      ),
       body: SafeArea(
           child: !initialized
               ? const Center(child: CircularProgressIndicator())
@@ -227,26 +229,45 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _homePage() => ListView(padding: const EdgeInsets.all(16), children: [
         Container(
-            padding: const EdgeInsets.all(22),
-            decoration: BoxDecoration(
-                color: const Color(0xFFFFE0BF),
-                borderRadius: BorderRadius.circular(24)),
-            child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Học vui mỗi ngày',
-                      style: TextStyle(
-                          fontSize: 27,
-                          fontWeight: FontWeight.bold,
-                          color: HhkTheme.teal)),
-                  SizedBox(height: 8),
-                  Text(
-                      'Bài học, luyện tập và ôn tập đều chạy trên điện thoại.'),
-                  SizedBox(height: 6),
-                  Text(
-                      'Không cần Chat AI • Không gửi điểm từng câu lên máy chủ',
-                      style: TextStyle(fontSize: 12)),
-                ])),
+          constraints: const BoxConstraints(minHeight: 210),
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(26),
+            image: const DecorationImage(
+              image: AssetImage('assets/brand/landing-hero.jpg'),
+              fit: BoxFit.cover,
+            ),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [Color(0xD9163F39), Color(0x770F524A),
+                  Color(0x120F524A)],
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Học vui mỗi ngày',
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800,
+                        color: Colors.white)),
+                const SizedBox(height: 10),
+                Text('Cùng Dopi khám phá kiến thức lớp $grade nhé!',
+                    style: const TextStyle(fontSize: 16, color: Colors.white)),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: () => setState(() => tab = 1),
+                  icon: const Icon(Icons.play_circle_outline),
+                  label: const Text('Tiếp tục học'),
+                ),
+              ],
+            ),
+          ),
+        ),
         const SizedBox(height: 12),
         FutureBuilder<bool>(
           future: gradeEntitled,
@@ -258,7 +279,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 : 'Chưa kích hoạt quyền offline lớp $grade'),
             subtitle: const Text('Phần xem thử vẫn dùng được. Kích hoạt trong tab Tài khoản để nhận lease Ed25519.'),
             trailing: TextButton(
-              onPressed: () => setState(() => tab = 2),
+              onPressed: _openAccount,
               child: const Text('Tài khoản')),
           )),
         ),
@@ -361,6 +382,138 @@ class _HomeScreenState extends State<HomeScreen> {
                 )),
         ]);
       });
+
+  Future<void> _openAccount() async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => Scaffold(
+        appBar: AppBar(title: const Text('Tài khoản & key')),
+        body: AccountPage(
+          api: widget.api,
+          initialSession: widget.session,
+          onSignedOut: widget.onSignedOut,
+          onLicenseChanged: _refreshLicense,
+        ),
+      ),
+    ));
+  }
+
+  Future<void> _chooseProfile() async {
+    final id = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(child: ListView(
+        shrinkWrap: true,
+        children: [
+          const ListTile(title: Text('Chọn hồ sơ học sinh')),
+          for (final profile in profiles)
+            ListTile(
+              leading: const Icon(Icons.school_outlined),
+              title: Text(profile.name),
+              subtitle: Text('Lớp ${profile.grade}'),
+              trailing: activeProfile?.id == profile.id
+                  ? const Icon(Icons.check_circle) : null,
+              onTap: () => Navigator.pop(ctx, profile.id),
+            ),
+          ListTile(
+            leading: const Icon(Icons.person_add_alt_1_outlined),
+            title: const Text('Thêm học sinh'),
+            onTap: () => Navigator.pop(ctx, 'create'),
+          ),
+        ],
+      )),
+    );
+    if (id == 'create') {
+      await _createProfile();
+    } else if (id != null) {
+      await _switchProfile(id);
+    }
+  }
+
+  void _openLegacyFeature(LegacyMenuItem feature) {
+    switch (feature.id) {
+      case 'lessons':
+      case 'curriculum':
+        setState(() => tab = 1);
+        return;
+      case 'account':
+        _openAccount();
+        return;
+      case 'profiles':
+        _chooseProfile();
+        return;
+      case 'review':
+      case 'progress':
+      case 'analytics':
+        if (activeProfile == null) return;
+        Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (_) => LocalProgressPage(
+            ledger: ledger, profile: activeProfile!,
+            grade: grade, currentPack: currentPack,
+            review: feature.id == 'review',
+          ),
+        ));
+        return;
+      case 'parent':
+        Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (_) => ParentOverviewPage(ledger: ledger, profiles: profiles),
+        ));
+        return;
+      default:
+        Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (_) => LegacyComingSoonPage(feature: feature),
+        ));
+    }
+  }
+
+  Widget _practiceHubPage() => FutureBuilder<GradePack>(
+    future: currentPack,
+    builder: (context, snapshot) {
+      if (snapshot.hasError) {
+        return const Center(child: Text('Không tải được bài luyện tập.'));
+      }
+      if (!snapshot.hasData) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      final pack = snapshot.data!;
+      final lessons = pack.lessons.where((lesson) {
+        final id = (lesson['id'] as num?)?.toInt();
+        return id != null &&
+            pack.questionsFor(id).any(QuizEvaluator.canGrade);
+      }).toList();
+      return ListView(padding: const EdgeInsets.all(16), children: [
+        Text('Luyện tập • Lớp $grade',
+            style: Theme.of(context).textTheme.headlineSmall),
+        const SizedBox(height: 8),
+        const Text('Chọn bài để làm câu hỏi. Kết quả và XP được lưu offline.'),
+        const SizedBox(height: 14),
+        if (lessons.isEmpty)
+          const Card(child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Text('Chưa có câu hỏi có thể chấm cho lớp này.'),
+          )),
+        for (final lesson in lessons)
+          Card(child: ListTile(
+            leading: const Icon(Icons.quiz_outlined),
+            title: Text(lesson['title']?.toString() ?? 'Bài học'),
+            subtitle: Text(lesson['subjectCode']?.toString() ?? ''),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              if (activeProfile == null) return;
+              final id = (lesson['id'] as num).toInt();
+              final questions = pack.questionsFor(id)
+                  .where(QuizEvaluator.canGrade).toList();
+              Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => PracticePage(
+                  questions: questions, ledger: ledger,
+                  profileId: activeProfile!.id, grade: grade,
+                  lessonId: id, subjectCode: lesson['subjectCode']?.toString() ?? '',
+                  lessonTitle: lesson['title']?.toString() ?? 'Luyện tập',
+                ),
+              ));
+            },
+          )),
+      ]);
+    },
+  );
 
   Widget _settingsPage() =>
       ListView(padding: const EdgeInsets.all(16), children: [

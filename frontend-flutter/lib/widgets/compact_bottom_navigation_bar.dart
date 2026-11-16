@@ -37,9 +37,9 @@ class CompactBottomNavigationBar extends StatelessWidget {
             label: 'Môn học',
           ),
           NavigationDestination(
-            icon: Icon(Icons.manage_accounts_outlined),
-            selectedIcon: Icon(Icons.manage_accounts),
-            label: 'Tài khoản',
+            icon: Icon(Icons.quiz_outlined),
+            selectedIcon: Icon(Icons.quiz),
+            label: 'Luyện tập',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),

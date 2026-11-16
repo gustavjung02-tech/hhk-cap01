@@ -7,8 +7,11 @@ import '../../data/account_api.dart';
 /// Parent/user account and key registry. Learner profiles remain offline-only.
 class AccountPage extends StatefulWidget {
   final AccountApi? api;
+  final AccountSession? initialSession;
+  final Future<void> Function()? onSignedOut;
   final Future<void> Function()? onLicenseChanged;
-  const AccountPage({super.key, this.api, this.onLicenseChanged});
+  const AccountPage({super.key, this.api, this.initialSession,
+      this.onSignedOut, this.onLicenseChanged});
 
   @override
   State<AccountPage> createState() => _AccountPageState();
@@ -30,6 +33,10 @@ class _AccountPageState extends State<AccountPage> {
   void initState() {
     super.initState();
     api = widget.api ?? AccountApi();
+    session = widget.initialSession;
+    if (session != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => run(loadKeys));
+    }
   }
 
   @override
@@ -147,18 +154,17 @@ class _AccountPageState extends State<AccountPage> {
   Future<void> signOut() => run(() async {
         final old = session;
         if (old == null) return;
-        try {
-          await api.logout(old);
-        } finally {
-          // Never keep a locally privileged session after an attempted logout.
-          if (mounted) {
-            setState(() {
-              session = null;
-              keys = const [];
-              qr.clear();
-              license.clear();
-            });
-          }
+        // Only clear the secure bearer credential after the server confirmed
+        // revocation. An offline logout must not leave an active remote token.
+        await api.logout(old);
+        await widget.onSignedOut?.call();
+        if (mounted) {
+          setState(() {
+            session = null;
+            keys = const [];
+            qr.clear();
+            license.clear();
+          });
         }
       });
 

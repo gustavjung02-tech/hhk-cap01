@@ -139,6 +139,12 @@ class AccountApi {
         body: {'email': email, 'password': password});
   }
 
+  Future<AccountSession> me(AccountSession session) async {
+    final result = await _call('/api/v1/account/me', token: session.token);
+    final account = result['account'] as Map<String, dynamic>;
+    return AccountSession(session.token, account['email'] as String);
+  }
+
   Future<List<AccountKey>> keys(AccountSession session) async {
     final result = await _call('/api/v1/account/keys', token: session.token);
     return (result['keys'] as List)

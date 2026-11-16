@@ -1,7 +1,7 @@
 import {before, beforeEach, after, test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {createPublicKey, generateKeyPairSync, randomBytes, sign, verify} from 'node:crypto';
+import {createHash, createPublicKey, generateKeyPairSync, randomBytes, sign, verify} from 'node:crypto';
 import {Pool} from 'pg';
 import {createApp} from '../src/app.js';
 import {LicenseService, proofMessage} from '../src/license.js';
@@ -335,6 +335,29 @@ if (!url) {
     assert.equal(revoked.status,200);
     assert.equal((await withAuth('/api/v1/account/keys/verify',
       proof(pair,'account-verify'))).body.code,'LICENSE_REVOKED');
+  });
+
+  test('account session is deliberately persistent until explicit logout', () async {
+    const email='persistent@example.test';
+    const password='sufficiently-long-secret-123';
+    assert.equal((await json('/api/v1/accounts/register',{email,password})).status,200);
+    const logged=await json('/api/v1/accounts/login',{email,password});
+    assert.equal(logged.status,200);
+    const token=logged.body.sessionToken as string;
+    const session=await pool.query(
+      'SELECT expires_at,revoked_at FROM account_sessions WHERE token_hash=$1',
+      [createHash('sha256').update(token).digest()]);
+    assert.equal(session.rows[0].expires_at,null);
+    assert.equal(session.rows[0].revoked_at,null);
+    const me=await app.request('/api/v1/account/me', {
+      headers:{authorization:'Bearer '+token}});
+    assert.equal(me.status,200);
+    const logout=await app.request('/api/v1/account/logout', {
+      method:'POST',headers:{authorization:'Bearer '+token}});
+    assert.equal(logout.status,200);
+    const after=await app.request('/api/v1/account/me', {
+      headers:{authorization:'Bearer '+token}});
+    assert.equal(after.status,401);
   });
 
 }

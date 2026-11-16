@@ -6,7 +6,6 @@ import type { Pool, PoolClient } from 'pg';
 import { ApiFault } from './license.js';
 
 const derive = promisify(scrypt);
-const sessionDurationMs = 30 * 24 * 60 * 60 * 1000;
 const emailPattern = /^[^\s@]{1,64}@[^\s@.]{1,190}\.[^\s@.]{2,24}$/;
 const sessionPattern = /^sess_[A-Za-z0-9_-]{43}$/;
 const digest = (value: string) => createHash('sha256').update(value).digest();
@@ -111,13 +110,14 @@ export class AccountService {
         [row.id]
       );
       const sessionToken = 'sess_' + randomBytes(32).toString('base64url');
-      const expiresAt = new Date(Date.now() + sessionDurationMs);
+      // Persist until user logs out or a server-side security revocation.
+      // The mobile/Web client stores this only in its secure session vault.
       await client.query(
-        'INSERT INTO account_sessions(id,account_id,token_hash,expires_at) VALUES ($1,$2,$3,$4)',
-        [randomUUID(), row.id, digest(sessionToken), expiresAt]
+        'INSERT INTO account_sessions(id,account_id,token_hash,expires_at) VALUES ($1,$2,$3,NULL)',
+        [randomUUID(), row.id, digest(sessionToken)]
       );
       return {error: false as const, account: {id: row.id, email: row.email},
-        sessionToken, expiresAt};
+        sessionToken};
     }).then(result => {
       if (result.error) throw new ApiFault(401, 'INVALID_CREDENTIALS');
       return result;
@@ -128,7 +128,7 @@ export class AccountService {
     const token = header?.startsWith('Bearer ') ? header.substring(7) : '';
     if (!sessionPattern.test(token)) throw new ApiFault(401, 'UNAUTHORIZED');
     const result = await this.pool.query<AccountIdentity>(
-      'SELECT a.id,a.email FROM account_sessions s JOIN app_accounts a ON a.id=s.account_id WHERE s.token_hash=$1 AND s.revoked_at IS NULL AND s.expires_at>now()',
+      'SELECT a.id,a.email FROM account_sessions s JOIN app_accounts a ON a.id=s.account_id WHERE s.token_hash=$1 AND s.revoked_at IS NULL AND (s.expires_at IS NULL OR s.expires_at>now())',
       [digest(token)]
     );
     if (!result.rows[0]) throw new ApiFault(401, 'UNAUTHORIZED');

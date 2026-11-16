@@ -17,12 +17,14 @@ CREATE TABLE account_sessions (
   id UUID PRIMARY KEY,
   account_id UUID NOT NULL REFERENCES app_accounts(id) ON DELETE CASCADE,
   token_hash BYTEA NOT NULL UNIQUE CHECK (octet_length(token_hash) = 32),
-  expires_at TIMESTAMPTZ NOT NULL,
+  expires_at TIMESTAMPTZ,
   revoked_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_account_sessions_owner ON account_sessions(account_id);
-CREATE INDEX idx_account_sessions_expires ON account_sessions(expires_at);
+-- Persistent until user signs out or server explicitly revokes this session.
+-- A nullable expiry supports this requirement without retaining passwords.
+CREATE INDEX idx_account_sessions_expires ON account_sessions(expires_at) WHERE expires_at IS NOT NULL;
 
 ALTER TABLE licenses ADD COLUMN account_id UUID REFERENCES app_accounts(id);
 CREATE INDEX idx_licenses_account ON licenses(account_id, issued_at DESC);
