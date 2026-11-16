@@ -84,7 +84,7 @@ class AccountApi {
   // Override for production release; this staging URL is not a production API.
   static const defaultBase = String.fromEnvironment('HHK_API_BASE_URL',
       defaultValue:
-          'https://hhk-cap01-license-staging-qpxfy7zmv-gustavjung02-techs-projects.vercel.app');
+          'https://hhk-cap01-license-staging-gustavjung02-techs-projects.vercel.app');
   final String baseUrl;
   final http.Client _client;
 
