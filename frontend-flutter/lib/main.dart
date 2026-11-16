@@ -6,6 +6,7 @@ import 'data/study_ledger.dart';
 import 'data/offline_license.dart';
 import 'features/study/lesson_page.dart';
 import 'features/account/account_page.dart';
+import 'widgets/compact_bottom_navigation_bar.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -216,27 +217,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       padding: const EdgeInsets.all(24),
                       child: Text(initializationError!, textAlign: TextAlign.center)))
                   : IndexedStack(index: tab, children: pages)),
-      bottomNavigationBar: NavigationBar(
-          selectedIndex: tab,
-          onDestinationSelected: (value) => setState(() => tab = value),
-          destinations: const [
-            NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home),
-                label: 'Trang chủ'),
-            NavigationDestination(
-                icon: Icon(Icons.menu_book_outlined),
-                selectedIcon: Icon(Icons.menu_book),
-                label: 'Môn học'),
-            NavigationDestination(
-                icon: Icon(Icons.manage_accounts_outlined),
-                selectedIcon: Icon(Icons.manage_accounts),
-                label: 'Tài khoản'),
-            NavigationDestination(
-                icon: Icon(Icons.settings_outlined),
-                selectedIcon: Icon(Icons.settings),
-                label: 'Cài đặt'),
-          ]),
+      // NavigationBar owns the system bottom safe area; do not wrap it again.
+      bottomNavigationBar: CompactBottomNavigationBar(
+        selectedIndex: tab,
+        onDestinationSelected: (value) => setState(() => tab = value),
+      ),
     );
   }
 
