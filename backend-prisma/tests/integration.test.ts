@@ -15,7 +15,10 @@ if (!url) {
   process.env.ADMIN_API_KEY = secret;
   const pair = generateKeyPairSync('ed25519');
   const service = new LicenseService({pool, adminKey:secret, privateKey:pair.privateKey});
-  const app = createApp(service);
+  const sentMail: Array<{to:string;subject:string;url:string}> = [];
+  const app = createApp(service, async (to,subject,actionUrl) => {
+    sentMail.push({to,subject,url:actionUrl});
+  });
   let n = 0;
 
   const json = async (route:string, body:unknown, admin=false) => {
@@ -69,9 +72,13 @@ if (!url) {
     const accountSql = readFileSync(new URL('../../db-prisma/migrations/0003_accounts.sql',
                                           import.meta.url), 'utf8');
     await pool.query(accountSql);
+    const securitySql = readFileSync(new URL('../../db-prisma/migrations/0004_account_security.sql',
+                                           import.meta.url),'utf8');
+    await pool.query(securitySql);
   });
   beforeEach(async () => {
-    await pool.query('TRUNCATE TABLE license_audit,device_activations,licenses,claim_tokens,reward_campaigns,print_batches,account_sessions,app_accounts RESTART IDENTITY CASCADE');
+    await pool.query('TRUNCATE TABLE license_audit,device_activations,licenses,claim_tokens,reward_campaigns,print_batches,account_security_audit,account_action_tokens,account_sessions,app_accounts,account_action_throttle RESTART IDENTITY CASCADE');
+    sentMail.length = 0;
   });
   after(async () => {await pool.end();});
 
@@ -358,6 +365,127 @@ if (!url) {
     const after=await app.request('/api/v1/account/me', {
       headers:{authorization:'Bearer '+token}});
     assert.equal(after.status,401);
+  });
+
+
+  test('verified email recovery is one-use and revokes all sessions',async()=>{
+    const email='recover@example.test',password='original-recover-pass123';
+    assert.equal((await json('/api/v1/accounts/register',{email,password})).status,200);
+    const one=await json('/api/v1/accounts/login',{email,password,deviceLabel:'iPhone'});
+    const two=await json('/api/v1/accounts/login',{email,password,deviceLabel:'Android'});
+    const sessionOne=one.body.sessionToken as string;
+    const sessionTwo=two.body.sessionToken as string;
+    const call = async (route:string,body:unknown, token=sessionOne) => {
+      const r=await app.request(route,{method:'POST',headers:{authorization:'Bearer '+token,
+        'content-type':'application/json'},body:JSON.stringify(body)});
+      return {status:r.status, body:await r.json() as Record<string,any>};
+    };
+    const forgotBefore=await json('/api/v1/accounts/password/forgot',{email});
+    assert.equal(forgotBefore.status,200);
+    assert.equal(sentMail.length,0,'Cannot reset unverified email');
+    assert.equal((await json('/api/v1/accounts/email/verification/request',{email})).status,200);
+    assert.equal(sentMail.length,1);
+    const verification=new URL(sentMail[0].url).searchParams.get('token')!;
+    assert.equal((await json('/api/v1/accounts/email/verify',{token:verification})).status,200);
+    assert.equal((await json('/api/v1/accounts/email/verify',{token:verification})).body.code,
+      'INVALID_ACTION_TOKEN');
+    assert.equal((await json('/api/v1/accounts/password/forgot',{email})).status,200);
+    assert.equal(sentMail.length,2);
+    const resetToken=new URL(sentMail[1].url).searchParams.get('token')!;
+    const stored=await pool.query(
+      "SELECT token_hash FROM account_action_tokens WHERE kind='reset'");
+    assert.notEqual(stored.rows[0].token_hash.toString('hex'),resetToken);
+    const reset=await json('/api/v1/accounts/password/reset',
+      {token:resetToken,newPassword:'new-reset-password-456'});
+    assert.equal(reset.status,200,JSON.stringify(reset.body));
+    assert.equal((await json('/api/v1/accounts/password/reset',
+      {token:resetToken,newPassword:'repeat-reset-password-456'})).body.code,'INVALID_ACTION_TOKEN');
+    for (const t of [sessionOne,sessionTwo]) {
+      const old=await app.request('/api/v1/account/me',
+        {headers:{authorization:'Bearer '+t}});
+      assert.equal(old.status,401);
+    }
+    assert.equal((await json('/api/v1/accounts/login',{email,password})).status,401);
+    assert.equal((await json('/api/v1/accounts/login',
+      {email,password:'new-reset-password-456'})).status,200);
+    assert.equal((await json('/api/v1/accounts/password/forgot',
+      {email:'unknown@example.test'})).status,200);
+    await pool.query("UPDATE account_action_tokens SET expires_at=now()-interval '1 second' WHERE kind='reset'");
+    // Expired tokens are rejected even if hash is otherwise valid.
+    assert.equal((await call('/api/v1/account/password/change',
+      {currentPassword:'wrong',newPassword:'other-new-password-789'},sessionTwo)).status,401);
+  });
+
+  test('password change rotates only current session; session management is scoped',async()=>{
+    const email='change@example.test',password='original-password-123';
+    await json('/api/v1/accounts/register',{email,password});
+    const first=await json('/api/v1/accounts/login',{email,password,deviceLabel:'Máy chính'});
+    const second=await json('/api/v1/accounts/login',{email,password,deviceLabel:'Máy khác'});
+    const token=first.body.sessionToken as string, other=second.body.sessionToken as string;
+    const call=async (path:string,body:unknown,t=token) => {
+      const r=await app.request(path,{method:'POST',
+        headers:{authorization:'Bearer '+t,'content-type':'application/json'},
+        body:JSON.stringify(body)});
+      return {status:r.status,body:await r.json() as Record<string,any>};
+    };
+    const sessions=await app.request('/api/v1/account/sessions',
+      {headers:{authorization:'Bearer '+token}});
+    const list=await sessions.json() as any;
+    assert.equal(list.sessions.length,2);
+    assert.equal(list.sessions.filter((s:any)=>s.current).length,1);
+    assert.equal(list.sessions.find((s:any)=>s.current).label,'Máy chính');
+    assert.equal((await call('/api/v1/account/password/change',
+      {currentPassword:'wrong-password',newPassword:'new-account-password-789'})).status,401);
+    assert.equal((await call('/api/v1/account/password/change',
+      {currentPassword:password,newPassword:'short'})).body.code,'WEAK_PASSWORD');
+    assert.equal((await call('/api/v1/account/password/change',
+      {currentPassword:password,newPassword:password})).body.code,'PASSWORD_UNCHANGED');
+    const changed=await call('/api/v1/account/password/change',
+      {currentPassword:password,newPassword:'new-account-password-789'});
+    assert.equal(changed.status,200,JSON.stringify(changed.body));
+    const fresh=changed.body.sessionToken as string;
+    assert.match(fresh,/^sess_[A-Za-z0-9_-]{43}$/);
+    assert.notEqual(fresh,token);
+    for(const old of [token,other]){
+      const r=await app.request('/api/v1/account/me',{headers:{authorization:'Bearer '+old}});
+      assert.equal(r.status,401);
+    }
+    assert.equal((await app.request('/api/v1/account/me',
+      {headers:{authorization:'Bearer '+fresh}})).status,200);
+    assert.equal((await json('/api/v1/accounts/login',{email,password})).status,401);
+    const next=await json('/api/v1/accounts/login',
+      {email,password:'new-account-password-789',deviceLabel:'Thiết bị thứ ba'});
+    assert.equal(next.status,200);
+    const otherId=(await (await app.request('/api/v1/account/sessions',
+      {headers:{authorization:'Bearer '+fresh}})).json() as any).sessions
+      .find((s:any)=>!s.current).id;
+    assert.equal((await call('/api/v1/account/sessions/revoke',
+      {sessionId:otherId},fresh)).status,200);
+    assert.equal((await app.request('/api/v1/account/me',
+      {headers:{authorization:'Bearer '+next.body.sessionToken}})).status,401);
+    assert.equal((await call('/api/v1/account/logout-all',{},fresh)).status,200);
+    assert.equal((await app.request('/api/v1/account/me',
+      {headers:{authorization:'Bearer '+fresh}})).status,401);
+  });
+
+  test('expired reset and wrong-kind tokens fail without password or session changes',async()=>{
+    const email='expire@example.test',password='expire-original-pass-123';
+    await json('/api/v1/accounts/register',{email,password});
+    await json('/api/v1/accounts/email/verification/request',{email});
+    const verification=new URL(sentMail[0].url).searchParams.get('token')!;
+    await json('/api/v1/accounts/email/verify',{token:verification});
+    await json('/api/v1/accounts/password/forgot',{email});
+    const expired=new URL(sentMail[1].url).searchParams.get('token')!;
+    await pool.query("UPDATE account_action_tokens SET expires_at=now()-interval '1 second' WHERE kind='reset'");
+    assert.equal((await json('/api/v1/accounts/password/reset',
+      {token:expired,newPassword:'new-expire-password-456'})).body.code,'INVALID_ACTION_TOKEN');
+    assert.equal((await json('/api/v1/accounts/password/reset',
+      {token:verification,newPassword:'new-expire-password-456'})).body.code,'INVALID_ACTION_TOKEN');
+    assert.equal((await json('/api/v1/accounts/login',{email,password})).status,200);
+    const unknown=await json('/api/v1/accounts/password/forgot',{email:'nobody@example.test'});
+    assert.deepEqual(unknown.body,{ok:true,requested:true});
+    assert.deepEqual((await json('/api/v1/accounts/password/forgot',{email})).body,
+      {ok:true,requested:true});
   });
 
 }

@@ -1,6 +1,7 @@
 import { Hono, type Context } from 'hono';
 import { cors } from 'hono/cors';
 import { AccountService, type AccountIdentity } from './account.js';
+import { AccountSecurityService, type AccountMailer } from './account_security.js';
 import { bodyLimit } from 'hono/body-limit';
 import {
   ApiFault, LicenseService, postgresError, serviceFromEnv
@@ -8,9 +9,12 @@ import {
 
 type Body = Record<string, unknown>;
 
-export function createApp(service?: LicenseService) {
+export function createApp(service?: LicenseService, mailer?: AccountMailer) {
   const app = new Hono();
   const accounts = service ? new AccountService(service.pool) : undefined;
+  const security = service ? new AccountSecurityService(service.pool, mailer) : undefined;
+  const requestIp = (c: Context) => (c.req.header('x-vercel-forwarded-for') ??
+    c.req.header('cf-connecting-ip') ?? c.req.header('x-forwarded-for') ?? 'unknown').split(',')[0].trim().slice(0,80);
   // Browser access is restricted to explicitly approved app origins.
   const trustedOrigins = new Set((process.env.HHK_ALLOWED_ORIGINS ?? '')
       .split(',').map(origin => origin.trim()).filter(Boolean));
@@ -111,6 +115,33 @@ export function createApp(service?: LicenseService) {
       return c.json({ok: true, ...await accounts.logout(header, identity.id)});
     } catch (error) { return accountError(c, error); }
   });
+  // Password recovery is intentionally separate from authenticated change.
+  app.post('/api/v1/accounts/email/verification/request',
+    c => withAccount(c, false, body => security!.requestVerification(body,requestIp(c))));
+  app.post('/api/v1/accounts/email/verify',
+    c => withAccount(c, false, body => security!.verifyEmail(body)));
+  app.post('/api/v1/accounts/password/forgot',
+    c => withAccount(c, false, body => security!.forgot(body,requestIp(c))));
+  app.post('/api/v1/accounts/password/reset',
+    c => withAccount(c, false, body => security!.reset(body)));
+  app.post('/api/v1/account/password/change', c => withAccount(c, true,
+    (body,identity) => security!.changePassword(identity!.id,c.req.header('authorization'),body)));
+  app.post('/api/v1/account/email/change/request', c => withAccount(c,true,
+    (body,identity) => security!.requestEmailChange(identity!.id,body)));
+  app.post('/api/v1/accounts/email/change/confirm', c => withAccount(c,false,
+    body => security!.confirmEmailChange(body)));
+  app.get('/api/v1/account/sessions',async c => {
+    if (!accounts || !security) return c.json({ok:false,code:'NOT_CONFIGURED'},503);
+    try {
+      const header=c.req.header('authorization');
+      const identity=await accounts.authenticate(header);
+      return c.json({ok:true,...await security.sessions(identity.id,header)});
+    } catch(error) {return accountError(c,error);}
+  });
+  app.post('/api/v1/account/sessions/revoke',c => withAccount(c,true,
+    (body,identity) => security!.revokeSession(identity!.id,c.req.header('authorization'),body)));
+  app.post('/api/v1/account/logout-all',c => withAccount(c,true,
+    (_body,identity) => security!.logoutAll(identity!.id)));
   app.post('/api/v1/account/keys/link', c => withAccount(c, true,
     (body, identity) => accounts!.linkKey(identity!.id, body)));
   app.post('/api/v1/account/keys/activate', c => withAccount(c, true,

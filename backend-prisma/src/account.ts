@@ -32,7 +32,7 @@ type LoginRow = {
   failed_logins: number;
   locked_until: Date | null;
 };
-export type AccountIdentity = { id: string; email: string };
+export type AccountIdentity = { id: string; email: string; emailVerified: boolean };
 
 async function transaction<T>(pool: Pool, fn: (client: PoolClient) => Promise<T>): Promise<T> {
   const client = await pool.connect();
@@ -112,9 +112,11 @@ export class AccountService {
       const sessionToken = 'sess_' + randomBytes(32).toString('base64url');
       // Persist until user logs out or a server-side security revocation.
       // The mobile/Web client stores this only in its secure session vault.
+      const label = typeof p.deviceLabel === 'string'
+        ? p.deviceLabel.trim().slice(0, 80) : 'Thiết bị đăng nhập';
       await client.query(
-        'INSERT INTO account_sessions(id,account_id,token_hash,expires_at) VALUES ($1,$2,$3,NULL)',
-        [randomUUID(), row.id, digest(sessionToken)]
+        'INSERT INTO account_sessions(id,account_id,token_hash,expires_at,device_label) VALUES ($1,$2,$3,NULL,$4)',
+        [randomUUID(), row.id, digest(sessionToken), label]
       );
       return {error: false as const, account: {id: row.id, email: row.email},
         sessionToken};
@@ -128,10 +130,15 @@ export class AccountService {
     const token = header?.startsWith('Bearer ') ? header.substring(7) : '';
     if (!sessionPattern.test(token)) throw new ApiFault(401, 'UNAUTHORIZED');
     const result = await this.pool.query<AccountIdentity>(
-      'SELECT a.id,a.email FROM account_sessions s JOIN app_accounts a ON a.id=s.account_id WHERE s.token_hash=$1 AND s.revoked_at IS NULL AND (s.expires_at IS NULL OR s.expires_at>now())',
+      'SELECT a.id,a.email,(a.email_verified_at IS NOT NULL) AS "emailVerified" FROM account_sessions s JOIN app_accounts a ON a.id=s.account_id WHERE s.token_hash=$1 AND s.revoked_at IS NULL AND (s.expires_at IS NULL OR s.expires_at>now())',
       [digest(token)]
     );
     if (!result.rows[0]) throw new ApiFault(401, 'UNAUTHORIZED');
+    // Throttle the last-used write to avoid a write for every read-only request.
+    await this.pool.query(
+      "UPDATE account_sessions SET last_used_at=now() WHERE token_hash=$1 AND last_used_at < now() - interval '5 minutes'",
+      [digest(token)]
+    );
     return result.rows[0];
   }
 
