@@ -1,24 +1,22 @@
-# HHK CAP-01 — EXECUTION TRACKER
+# HHK CAP-01 — Execution tracker
+Canonical plan: GitHub Issue #1. Checkpoint: 16/11/2026 UTC+7. Branch: `staging`. Production database and `main` untouched.
 
-Checkpoint 16/11/2026. Canonical plan: GitHub Issue #1. Work branch: staging. Source commit: 96fab7b901b24181896f42366a2b8fae16b6b135. CI run 43792138192 passed 5/5.
+| Phase | Evidence | Result |
+| --- | --- | --- |
+| #15 backend/Flutter source | `d35589d9aa899ca6f1c8cec9af7042fd0dc75aea` | Source implemented |
+| 5-job exact-SHA CI | [run 43799028874](https://github.com/gustavjung02-tech/hhk-cap01/actions/runs/43799028874) | PASS |
+| Staging DB restore-capable backup | Vercel Drive `hhk-staging-db-backups` (iad1), `hhk-staging-pre0004-20261116.dump`, SHA256 verified; isolated PostgreSQL 18 restore counts matched | PASS |
+| SQL migration 0004 | hhk-staging only, ledger 0001–0004, 3 security tables and email verification column | PASS |
+| Backend staging release | `dpl_GVt4esjyVUec7KSjFxsZZE4hgEhr` `READY`; health ready / public-key valid / unauthorized sessions 401 | PASS |
+| Recovery mail sender | Resend `fbmn.vn`, Vercel staging env sending-only domain-scoped key and sender; QA verify email delivered and received | PASS |
+| Forgot privacy regression | Unknown and unverified addresses same 200 neutral; no reset mail for either | PASS |
+| Live verified-link reset & session rotation | Token handoff between mailbox and backend blocked by connector security; CI PostgreSQL tests pass, no live proof | PENDING |
+| iPhone Safari / Android physical QA | No real device test evidence | PENDING (#10) |
+| PWA public test alias | `dpl_7BfqKgWGkZRgXbF4c39EEmU9CMoE` unchanged | HELD per gate |
+| Production DB migration / main merge | Not authorized, never initiated | NOT DONE |
 
-- App testing URL: https://hhk-cap01-pwa.vercel.app/ (Vercel deployment dpl_7BfqKgWGkZRgXbF4c39EEmU9CMoE). Public production URL, but app currently connects to Prisma staging backend.
-- Backend staging: hhk-cap01-license-staging-gustavjung02-techs-projects.vercel.app, deployment dpl_E51phyPMRZSgWW6LA9VunrMEjGto. Auth registration, login, me, keys, logout verified by live API tests. Prisma hhk-staging migrations 0001, 0002 and 0003.
-- Pre-migration database snapshot of seven tables exists in schema hhk_pre_account_20261116. Same-database snapshot is not an offsite backup.
-- Current UI: Dopi login gate, persistent client session, user profile icon top right, hamburger menu top left, bottom tabs Home/Subjects/Practice/Settings, photo hero, local progress/review/parent basics.
-- Account limitations: no change password, forgot password, verified email or session management screens. Task #15 is P0.
-- Legacy feature inventory: Issue #14 and docs/LEGACY_APP_FEATURE_AUDIT.md. Many original app features remain not migrated. Real-device QA and question bank review still pending.
+Read [handoff](./HHK_HANDOFF.md), [account contract](./ACCOUNT_LICENSE_WORKFLOW.md), and [staging security backup/release runbook](./ACCOUNT_SECURITY_RELEASE_20261116.md).
 
-Work order: (1) Issue #15 account recovery and security; (2) Issue #10 plus #2 iPhone/Android QA and UI fixes; (3) Issue #8 plus #7 one-time QR and device license live E2E; (4) Issue #3 and #4 study progress and question correctness; (5) Issue #14 and #5 legacy port/audio; (6) Issue #11 signed APK and release gates.
+Next priority after #15 device QA: #10/#2 Safari, Android and UI; #8/#7/#9 QR/key/account device lease E2E; #3/#4 local progress and question audit (19,043 source items/1,600 quarantine); #14/#5 legacy daily challenges, games, art, badges/avatars, mind map, memory room, audio; #11/#6 production isolation, signed APK, restore rehearsal and release gates.
 
-Rules: modify original source on staging, add tests, require green CI on exact SHA, deploy manually, update issue. Main and production database unchanged unless separately approved. Learner profiles, answers, XP and learning progress stay offline. QR redemption happens in app, not a separate website.
-
-See docs/HHK_HANDOFF.md and docs/ACCOUNT_LICENSE_WORKFLOW.md for the handoff and account specifications.
-
----
-## Issue #15 source implementation checkpoint — 16/11/2026
-- New staging source checkpoint a9334d57: backend account change-password, forgot/reset (hashed one-use 20-min email token after verification), sessions/revoke/logout-all, email change verification, throttles and audit. Change rotates current bearer while revoking others; reset revokes all. Flutter Dopi forgot/reset and account settings integrated with secure vault; new PostgreSQL integration and widget tests.
-- New migration 0004_account_security.sql is **NOT** applied. Existing staging DB data preflight: 2 accounts, 3 sessions, 1 license, 1 QR; version ledger 0001,0002,0003. Source CI must pass all five jobs for final exact commit.
-- Blocker for database deployment: Prisma backups list empty; prior in-DB snapshot cannot replace offsite/restore-capable backup. Backup/restore first, migration staging only second.
-- Blocker for email E2E: Resend sender domain fbmn.vn verified, but staging Vercel now has HHK_MAIL_FROM and HHK_PUBLIC_APP_URL scoped to staging preview, but RESEND_API_KEY is still missing. Configure the sending secret before live reset validation.
-- PWA production test URL has NOT been updated to Issue #15 code; backend staging remains pre-0004. Do not change main or production DB. After gates: staging migration, staging backend deploy/smoke, iPhone/Android QA, then manual PWA alias update.
+Security and data invariants: QR claimed in-app, one key per account, one parent many keys; only Ed25519 device lease is offline entitlement; student profiles, XP, answers and history remain local. Never treat CI green as proof of physical QA or commercial release.
