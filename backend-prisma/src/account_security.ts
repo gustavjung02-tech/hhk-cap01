@@ -223,7 +223,7 @@ export class AccountSecurityService {
         [accountId,hash(token)]);
       if (!a || !active.rows[0]) throw new ApiFault(401,'UNAUTHORIZED');
       if (a.locked_until && a.locked_until.getTime()>Date.now()) throw new ApiFault(403,'ACCOUNT_LOCKED');
-      const prior=await derive(p.currentPassword,a.password_salt,64) as Buffer;
+      const prior=await derive(p.currentPassword as string,a.password_salt,64) as Buffer;
       if (!timingSafeEqual(prior,a.password_hash)) {
         const n=a.failed_logins+1;
         await c.query('UPDATE app_accounts SET failed_logins=$2,locked_until=$3 WHERE id=$1',
@@ -232,7 +232,7 @@ export class AccountSecurityService {
           [accountId,'password_change_rejected']);
         return {error:'INVALID_CREDENTIALS'};
       }
-      const duplicate=await derive(p.newPassword,a.password_salt,64) as Buffer;
+      const duplicate=await derive(p.newPassword as string,a.password_salt,64) as Buffer;
       if (timingSafeEqual(duplicate,a.password_hash)) return {error:'PASSWORD_UNCHANGED'};
       const sessionToken='sess_'+randomBytes(32).toString('base64url');
       await c.query(

@@ -13,7 +13,7 @@ const noncePattern = /^[A-Za-z0-9_-]{16,64}$/;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export class ApiFault extends Error {
-  constructor(public readonly status: 400 | 401 | 403 | 404 | 409 | 422 | 503,
+  constructor(public readonly status: 400 | 401 | 403 | 404 | 409 | 422 | 429 | 503,
               public readonly code: string) { super(code); }
 }
 
