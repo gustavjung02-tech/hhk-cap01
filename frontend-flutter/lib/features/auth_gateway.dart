@@ -21,7 +21,9 @@ class SecureAccountSessionVault implements AccountSessionVault {
   @override
   Future<AccountSession?> read() async {
     final value = await storage.read(key: _key);
-    if (value == null) return null;
+    if (value == null) {
+      return null;
+    }
     try {
       final data = jsonDecode(value) as Map<String, dynamic>;
       final token = data['token'] as String;
@@ -85,17 +87,21 @@ class _AuthGatewayState extends State<AuthGateway> {
       if (saved != null) {
         try {
           await api.me(saved);
-          if (mounted) setState(() => session = saved);
+          if (mounted) {
+            setState(() => session = saved);
+          }
         } on AccountApiException catch (e) {
           if (e.code == 'UNAUTHORIZED') {
             await vault.clear();
           } else {
             // Preserve credentials through network outages/server maintenance.
             // This only enables offline *local* study; API retains auth checks.
-            if (mounted) setState(() {
-              session = saved;
-              message = 'Không thể kiểm tra máy chủ. Dữ liệu học offline vẫn dùng được.';
-            });
+            if (mounted) {
+              setState(() {
+                session = saved;
+                message = 'Không thể kiểm tra máy chủ. Dữ liệu học offline vẫn dùng được.';
+              });
+            }
           }
         }
       }
@@ -104,12 +110,16 @@ class _AuthGatewayState extends State<AuthGateway> {
         setState(() => message = 'Không mở được phiên đăng nhập đã lưu.');
       }
     } finally {
-      if (mounted) setState(() => restoring = false);
+      if (mounted) {
+        setState(() => restoring = false);
+      }
     }
   }
 
   Future<void> _submit() async {
-    if (busy) return;
+    if (busy) {
+      return;
+    }
     setState(() {
       busy = true;
       message = null;
@@ -128,14 +138,18 @@ class _AuthGatewayState extends State<AuthGateway> {
         });
       }
     } on AccountApiException catch (e) {
-      if (mounted) setState(() => message = e.message);
+      if (mounted) {
+        setState(() => message = e.message);
+      }
     } catch (_) {
       if (mounted) {
         setState(() => message =
             'Không lưu được phiên đăng nhập an toàn trên thiết bị.');
       }
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (mounted) {
+        setState(() => busy = false);
+      }
     }
   }
 
@@ -160,7 +174,9 @@ class _AuthGatewayState extends State<AuthGateway> {
   void dispose() {
     email.dispose();
     password.dispose();
-    if (widget.api == null) api.close();
+    if (widget.api == null) {
+      api.close();
+    }
     super.dispose();
   }
 
