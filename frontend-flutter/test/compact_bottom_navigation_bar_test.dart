@@ -37,7 +37,7 @@ void main() {
     await render(tester, 0, (index) => selected = index);
     expect(tester.getSize(find.byType(NavigationBar)).height,
         CompactBottomNavigationBar.contentHeight);
-    await tester.tap(find.text('Luyện tập'))
+    await tester.tap(find.text('Luyện tập'));
     await tester.pump();
     expect(selected, 2);
   });

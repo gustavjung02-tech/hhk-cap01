@@ -337,7 +337,7 @@ if (!url) {
       proof(pair,'account-verify'))).body.code,'LICENSE_REVOKED');
   });
 
-  test('account session is deliberately persistent until explicit logout', () async {
+  test('account session is deliberately persistent until explicit logout', async () => {
     const email='persistent@example.test';
     const password='sufficiently-long-secret-123';
     assert.equal((await json('/api/v1/accounts/register',{email,password})).status,200);
