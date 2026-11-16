@@ -1,49 +1,45 @@
-# HHK tài khoản & quản lý key trong app — staging-first (Issue #2/#8/#9)
+# HHK CAP-01 — ACCOUNT, QR VÀ LICENSE (CANONICAL)
 
-## Checkpoint tiếp theo — signed lease theo tài khoản (source on staging)
+Checkpoint 16/11/2026. Roadmap chính: GitHub Issue #1. Task quản lý tài khoản: #15. Trạng thái khác nhau giữa code đã chạy và tính năng chưa làm phải được giữ rõ ràng.
 
-- Account-owned `POST /api/v1/account/keys/activate` và `POST /api/v1/account/keys/verify` dùng chữ ký Ed25519 theo **licenseId + action + nonce + timestamp + devicePublicKey**; server kiểm tra chủ tài khoản và giới hạn máy bằng PostgreSQL row lock. Không cần gửi raw license key sau khi gắn vào tài khoản.
-- Flutter tạo khóa riêng Ed25519 cho thiết bị, lưu private key bằng `flutter_secure_storage` (Android Keystore/iOS Keychain; bản Web là thử nghiệm). Khóa riêng không gửi server. App xác minh lease bằng public key Ed25519 **đã pin**, ràng buộc thiết bị, lớp, thời hạn và không cấp quyền từ một cờ local.
-- Giao diện key có nút kích hoạt/gia hạn trên máy; màn hình chính thông báo trạng thái lease lớp đang chọn. Chưa chặn bản học thử vì chưa chốt ranh giới free/premium và static PWA JSON vẫn public.
-- CI test mô phỏng chứng minh proof client ký đúng, từ chối chữ ký lease bị sửa, lease hết hạn, sai lớp và lease cho thiết bị khác. Đây là **code mới chưa phát hành**; QA thiết bị thật, Safari và xác minh key persistence vẫn cần làm.
-- **Cổng release:** CI xanh SHA mới, Prisma staging backup hiện đang trả danh sách rỗng → chưa chạy migration `0003` trên database thật; không chạm production. Cần phương án backup phù hợp rồi mới migration và phát hành backend staging.
-- Auth vẫn thiếu xác minh email, khôi phục mật khẩu, chống abuse phân tán và khóa public legacy QR redeem trước release công khai. Issue #9 chưa được đóng.
+## Nghiệp vụ đã chốt
+- Một tài khoản người dùng/phụ huynh có thể sở hữu nhiều key. Mỗi key chỉ có một chủ tài khoản.
+- Một lốc 20 cuốn tập có một QR claim dùng một lần. QR được quét TRONG app sau khi đăng nhập, không cần website đổi QR riêng. Key mới chỉ hiển thị raw một lần.
+- Backend quản lý tài khoản, phiên, QR, campaign, key, thiết bị và thu hồi. Hồ sơ học sinh, bài làm, XP, tiến độ ở local; không đồng bộ câu trả lời lên PostgreSQL.
+- Key trong tài khoản chưa tự cấp quyền học: chỉ lease Ed25519 ký từ server, ràng thiết bị, lớp và thời hạn mới xác nhận quyền offline. Nội dung PWA static vẫn có thể tải trực tiếp.
 
+## Đã triển khai và kiểm chứng
+- Backend Hono: register, login, me, logout, keys, link key, redeem QR vào account, activate/verify license theo device proof.
+- Mật khẩu được lưu dưới dạng scrypt hash với salt riêng; tối thiểu 12 ký tự. Sau 5 lần sai khóa login 15 phút. Session token ngẫu nhiên chỉ lưu hash ở server.
+- Phiên đăng nhập không tự hết hạn theo ngày (database expires_at để NULL), có thể thu hồi khi user đăng xuất hoặc cần bảo vệ tài khoản.
+- Flutter: login/register Dopi trước khi vào app, secure storage khôi phục phiên qua API, avatar tài khoản góc phải, danh sách key/QR.
+- Database staging chạy migration 0001/0002/0003; backend API account đã chạy E2E thực tế. PWA đã được phát hành tại https://hhk-cap01-pwa.vercel.app/ để thử UI, nhưng kết nối backend/database STAGING.
+- Source 96fab7b9; CI https://github.com/gustavjung02-tech/hhk-cap01/actions/runs/43792138192 xanh 5/5.
 
-## Nghiệp vụ đã chốt theo yêu cầu mới (15/11/2026)
+## Còn thiếu: ĐỔI PASS / QUÊN PASS (Issue #15, P0)
+Hiện chưa có API hoặc nút đổi mật khẩu, quên mật khẩu, xác minh email, xem/thu hồi phiên từng thiết bị.
 
-1. Người dùng/phụ huynh có **tài khoản online** (email + mật khẩu). Hồ sơ học sinh, bài làm, XP và nội dung offline tiếp tục lưu **trên thiết bị**, không chuyển sang PostgreSQL.
-2. Trong tab **Tài khoản** của Flutter: đăng ký, đăng nhập, xem danh sách key, quét QR trực tiếp bằng camera Android/iOS/Web, hoặc dán QR URL/mã để đổi **một lần** vào chính tài khoản đã đăng nhập.
-3. Key cũ đã nhận trước đó có thể nhập để liên kết tài khoản. Server lưu SHA-256 của key, **không có khả năng khôi phục và trả lại raw key** trong danh sách. Key mới chỉ hiển thị một lần ở màn hình đổi QR.
-4. Một key thuộc tối đa một tài khoản; danh sách key chỉ được trả về với session hợp lệ thuộc chủ sở hữu. Mỗi QR đổi một lần bằng DB transaction và unique constraints.
-5. Key được quản lý online, nhưng **chỉ sự hiện diện của key trong tài khoản KHÔNG cấp quyền học offline**. Quyền offline phải do Ed25519 lease ký từ backend, khóa vào device key và kiểm tra chữ ký, expiry và lớp học trong Flutter. Không cho phép client tự set `premium=true`.
+**Đổi mật khẩu khi đăng nhập**
+1. Avatar góc phải -> Tài khoản & bảo mật -> Đổi mật khẩu -> nhập mật khẩu hiện tại, mật khẩu mới, nhập lại.
+2. Backend xác thực phiên và mật khẩu cũ, kiểm tra mật khẩu mới, tạo hash/salt mới, cập nhật transaction.
+3. Thu hồi mọi phiên máy khác. Phiên máy đang dùng được cấp token mới và lưu an toàn để KHÔNG tự nhảy về màn login khi đổi thành công.
+4. Không tác động chủ sở hữu key, QR đã đổi hoặc dữ liệu học tập local. Test mật khẩu sai, xung đột, phiên cũ, nhiều thiết bị.
 
-## API mới / phân quyền
+**Quên mật khẩu khi chưa đăng nhập**
+1. Màn Dopi có Quên mật khẩu? -> người dùng nhập email đã chứng minh quyền sở hữu.
+2. Backend gửi link reset HTTPS một lần, hạn ngắn 15–30 phút; DB chỉ giữ hash của token, trả câu trả lời chung cho email có/không tồn tại.
+3. Tại link xác minh token, người dùng đặt mật khẩu mới. Reset thành công thu hồi tất cả phiên cũ; người dùng đăng nhập lại. Không gửi mật khẩu qua email.
+4. Phải bổ sung xác minh email khi đăng ký, gửi mail có rate-limit, chống replay/brute-force và kiểm thử recovery. Không được coi email tự khai hiện tại là đã verify.
 
-- `POST /api/v1/accounts/register`: email và mật khẩu tối thiểu 12 ký tự, scrypt + per-account random salt.
-- `POST /api/v1/accounts/login`: session ngẫu nhiên, chỉ giữ SHA-256 ở DB, hết hạn sau 30 ngày; khóa tài khoản 15 phút sau 5 mật khẩu sai liên tiếp. Không lưu plain password.
-- `GET /api/v1/account/me`, `POST /api/v1/account/logout`, `GET /api/v1/account/keys`: yêu cầu bearer session; list keys không chứa raw license key.
-- `POST /api/v1/account/claims/redeem`: lấy QR dưới tài khoản đã đăng nhập, phát license gắn account atomically; replay 409.
-- `POST /api/v1/account/keys/link`: gắn key chưa có owner vào account, idempotent nếu cùng owner, ngăn chiếm key đã gắn account khác.
-- API QR legacy anonymous vẫn tồn tại trong backend để bảo toàn tính tương thích; **chưa được dùng làm luồng chính của Flutter** và phải khóa/xóa trước public production rollout để tránh claim ngoài tài khoản.
-- CORS server dùng `HHK_ALLOWED_ORIGINS` danh sách origin đầy đủ, phân cách dấu phẩy. Browser PWA từ origin chưa được allow sẽ không gọi được account API. Không mặc định `*`.
+**Quản lý phiên**
+- Thêm màn xem các phiên thiết bị, đăng xuất máy khác, đăng xuất tất cả.
+- Phiên chỉ kết thúc khi người dùng yêu cầu hoặc có lý do an ninh (server revoke/reset) hay browser xóa storage; không chủ động timeout hàng ngày. Safari có thể tự dọn dữ liệu nên không cam kết đăng nhập vĩnh viễn trên PWA.
+- Đổi/reset mật khẩu không tự gỡ key khỏi tài khoản; offline lease đã phát có vòng đời riêng và không thể bị hủy tức thì khi máy mất mạng.
 
-## Thay đổi schema
+## Phải làm trước GA
+- Xóa nội dung mô tả cũ trong màn AccountPage rằng phiên chỉ ở RAM; sửa UI đúng thực tế secure storage.
+- Khóa luồng QR legacy anonymous trước bán thật, E2E quét camera iPhone/Android, renew/expire/revoke/transfer.
+- Xác minh email, recover pass, chống abuse theo nhiều thiết bị/IP, bảo vệ dữ liệu; test restore/rollback staging, device QA và audit nội dung.
+- Nghiệp vụ/thời hạn chương trình quà tặng chưa được quyết định thương mại; không suy đoán.
 
-`db-prisma/migrations/0003_accounts.sql` tạo bảng `app_accounts`, `account_sessions`, thêm `licenses.account_id` và indexes. **Chưa chạy trên `hhk-staging`**, chỉ chạy test PostgreSQL disposable trong CI. Migration không xóa bảng cũ hoặc dữ liệu hiện tại. Sau CI xanh và duyệt kế hoạch backup mới áp dụng riêng staging; không động vào main.
-
-## Trạng thái thực thi và cổng trước phát hành
-
-- Code Flutter, backend, test đang trên `staging`; app staging build không đồng nghĩa backend schema đã có. Chưa deploy bản Flutter có account.
-- Session Flutter tạm thời **chỉ giữ RAM**, không lưu token vào SQLite/IndexedDB, vì đó không phải kho thông tin xác thực an toàn; khởi động lại app phải đăng nhập. Cần nghiên cứu kho token bảo mật đa nền tảng và logout mọi thiết bị trước GA.
-- Chưa có email verification, password reset, server-wide IP rate limit, CSRF/cookie flow, đồng ý chính sách và kiểm thử recovery; **không mở public signup/đưa production** trước các bước này.
-- Chưa có device proof v2 theo account/lease offline trong Flutter; UI không đánh lừa người dùng là đã mở khóa gói học.
-- QR Web camera cần quyền camera và kết nối HTTPS; mobile_scanner Web tải bộ giải mã lần đầu (không hoạt động hoàn toàn offline); người dùng vẫn có thể nhập mã bằng tay.
-- Trước deploy: CI xanh với SHA mới → sao lưu staging → migration 0003 staging-only → cấu hình CORS đúng origin staging PWA → manual deploy backend của SHA mới → E2E register/login/redeem/link/key isolation/QR duplicate/expiry → kiểm thử UI Android/PWA và signed-lease offline → mới xét release.
-
-## Còn phải làm trong task tiếp
-
-1. Dứt luồng activate/verify bằng device Ed25519 **không cần raw license key**, dựa trên session tài khoản + license id, ký proof vào account/thiết bị, bảo toàn lease offline.
-2. Bổ sung signed-lease verification Flutter Android/iOS/PWA và persistence private device key trong secure storage phù hợp từng nền tảng; test tamper/expiry/đổi máy/revoke.
-3. Auth hardening: email verification, reset password, anti-abuse, lưu session bảo mật, audit privacy. Thay thế redeem anonymous để tất cả QR thuộc tài khoản.
-4. QA trình quét camera thiết bị thật (Android+iPhone+Safari), hành vi khi offline, và khi QR đã dùng.
+Roadmap kỹ thuật: docs/EXECUTION_TRACKER.md. Chi tiết task: https://github.com/gustavjung02-tech/hhk-cap01/issues/15

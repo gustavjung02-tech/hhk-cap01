@@ -1,45 +1,38 @@
-# HHK CAP-01 — kiểm kê chức năng app gốc → Flutter
+# HHK CAP-01 — ĐỐI CHIẾU TÍNH NĂNG APP CŨ VỚI FLUTTER
 
-**Nguồn được đọc trực tiếp:** repo `gustavjung01/cap-01`, branch `main`, tại `src/routes/appRoutes.tsx`, `src/shared/components/Sidebar.tsx`, `src/shared/components/AppAuthGate.tsx`, `src/modules/student/pages/HomePage.tsx` và `PracticePage.tsx`. App gốc chỉ để tham khảo, **không ghi/sửa**. Các mục thiếu bên dưới là **chưa chuyển**, không phải tính năng đã hoàn thành.
+Checkpoint 16/11/2026. App gốc READ-ONLY: https://github.com/gustavjung01/cap-01 (src/routes/appRoutes.tsx và src/shared/components/Sidebar.tsx). Roadmap chính Issue #1, danh sách port Issue #14. Đây là kiểm kê, KHÔNG phải danh sách tính năng đã hoàn thành.
 
-## Yêu cầu bố cục mới (16/11/2026)
+## Shell đã có trong bản PWA production URL cho user test
+- Màn login/register Dopi + card trước khi vào app, session được lưu/khôi phục từ secure storage client; backend đăng nhập thật Prisma staging đã bật.
+- Trên trái: hamburger mở menu theo bốn nhóm. Trên phải: icon account/quản lý key. Bottom bốn tab: Trang chủ, Môn học, Luyện tập, Cài đặt.
+- Home hero ảnh nền landing-hero.jpg có overlay/CTA. Nội dung học, câu hỏi hỗ trợ chấm, hồ sơ, tiến độ, XP là local.
+- Flutter CI 5/5 xanh ở commit 96fab7b9. Chưa xác nhận iPhone Safari real-device E2E, không gọi bản này GA.
 
-- Trước khi mở app phải có **màn đăng ký/đăng nhập**. Background dùng hình hiện có `assets/brand/landing-hero.jpg` và Dopi `dopi-avatar.png`, card nhập email/mật khẩu. Đăng nhập qua API thật, không bypass local, không có chế độ "vào app mà không login".
-- Sau login mới vào Flutter shell. **Tài khoản góc trên phải**, ba gạch trái trên mở Drawer. Bottom **Trang chủ / Môn học / Luyện tập / Cài đặt** với SafeArea iOS chuẩn (60dp content).
-- Session bearer lưu riêng bằng `flutter_secure_storage` và thử khôi phục/đối chiếu server khi mở app; offline dùng lại phiên đã được xác thực để xem bài và tiến độ cục bộ, nhưng không cấp quyền trả phí nếu không có lease Ed25519 hợp lệ. Phiên **không tự hết hạn theo ngày**; chỉ đăng xuất chủ động hoặc khi server thu hồi / vô hiệu hóa vì bảo mật. Đăng xuất yêu cầu server xác nhận revoke trước khi xóa token cục bộ.
-- Hero trang chủ có ảnh gốc `landing-hero.jpg` + gradient và CTA học; tránh chữ trên nền khó đọc.
-- **Không** chuyển sang React, không sử dụng Clerk bridge / Web backend của app cũ làm backend thứ hai. Server account tiếp tục Hono/Prisma staging.
+## Chức năng cũ và trạng thái thực tế
+| Nhóm | Chức năng | Trạng thái Flutter |
+|---|---|---|
+| Học tập | Bài học, môn học, giáo trình | PARTIAL: có danh sách nội dung và bài; nội dung/đáp án chưa kiểm định hết |
+| Học tập | Luyện tập | PARTIAL: có bottom riêng, quiz có guard kiểu câu hỗ trợ, offline XP |
+| Học tập | Ôn tập thông minh | PARTIAL: xem bài đến hạn từ StudyLedger local |
+| Học tập | Phòng trí nhớ, sơ đồ tư duy | CHƯA PORT logic |
+| Học tập | Trợ lý AI cũ | NGOÀI SCOPE Flutter, không dựng backdoor React/AI |
+| Vui chơi | Thử thách hằng ngày, mini-game, vẽ/tô màu, thi đấu | CHƯA PORT logic; drawer hiển thị “Chưa chuyển” |
+| Thành tích | Tiến bộ/phân tích | PARTIAL: thống kê dựa trên StudyLedger local |
+| Thành tích | Huy hiệu, thành tựu, bảng xếp hạng, cửa hàng avatar | CHƯA PORT logic |
+| Cài đặt | Hồ sơ học sinh | PARTIAL: chọn/thêm/chuyển nhiều hồ sơ local |
+| Cài đặt | Phụ huynh | PARTIAL: XP theo hồ sơ; chức năng nâng cao chưa port |
+| Cài đặt | Giọng đọc, audio offline R2, theme, dữ liệu, cập nhật offline | CHƯA PORT đủ; cần assets thật và QA |
+| Account | Quét QR, quản lý key, activate license | PARTIAL: account + backend staging source chạy, camera/device E2E chưa |
+| Account | Đổi pass, quên pass, email verify, phiên thiết bị | CHƯA CÓ; P0 Issue #15 |
+| Admin/desktop | Billing, cửa hàng cũ, Windows updater | Không đưa vào menu học sinh. Quản trị/đơn hàng là phạm vi backend riêng |
 
-## Đối chiếu chức năng từ app gốc
+## Thứ tự port để không làm “nút giả”
+1. P0 #15 password recovery/account management và #10 real-device QA.
+2. P0 #8/#7 QR/key/device E2E; #3/#4 tiến độ và chấm câu.
+3. P1 #14 mini-games + daily challenge (logic thật từ app cũ), badge/achievement/avatar, vẽ/mind-map/memory, phụ huynh nâng cao.
+4. P1 #5 audio/TTS assets R2 và offline player, export data, accessibility.
+5. #11 phát hành APK có chữ ký và kiểm thử rollback.
 
-| Nhóm trên Sidebar cũ | Chức năng gốc | Flutter sau commit thiết kế | Ưu tiên nghiệp vụ |
-|---|---|---|---|
-| Học tập | Bài học, Môn học, Giáo trình | Bài học + danh sách môn/giáo trình với dữ liệu đã nhập | P0: kiểm nội dung thực |
-| Học tập | Quiz / Luyện tập | **Bottom Luyện tập** chọn bài và mở bộ câu hỏi có quy tắc chấm offline | P0: QA chấm nhiều dạng |
-| Học tập | Ôn tập thông minh | Trang mới đọc `StudyLedger.dueForReview` theo hồ sơ/lớp, vào bài thật | P0: E2E |
-| Học tập | Phòng trí nhớ, Mind-map | Có trong Drawer, **chưa chuyển nghiệp vụ** | P1 |
-| Học tập | Trợ lý học tập AI | Có trong kiểm kê, **không triển khai AI/chat** vì giới hạn dự án | Ngoài scope |
-| Vui chơi | Thử thách hằng ngày, Mini-Game, Vẽ & tô màu, Thi đấu | Trong Drawer, có trạng thái **Chưa chuyển**, không game giả | P1 |
-| Thành tích | Tiến bộ, Phân tích | Trang mới đọc thống kê thực từ ledger; nhiều hồ sơ tách riêng | P0/P1 |
-| Thành tích | Huy hiệu, Thành tựu, Bảng xếp hạng, Cửa hàng avatar | Trong Drawer, chưa chuyển; leaderboard cloud cần quyết định privacy | P1/P2 |
-| Cài đặt | Hồ sơ học sinh | Drawer → chọn/chuyển/thêm hồ sơ local thực | P0 |
-| Cài đặt | Phụ huynh | Trang mới hiển thị XP theo từng hồ sơ local; chưa đồng bộ cloud | P0/P1 |
-| Cài đặt | Giọng đọc, Audio offline, Cập nhật PWA, Giao diện, Dữ liệu | Trong Drawer, chưa chuyển logic cũ | P1/P2 |
-| Cài đặt | Gói dịch vụ / license | Góc phải trên → màn quản lý key/QR/kích hoạt đã có source | P0; cần backend migrate |
-| Nội bộ | Admin, billing, desktop-only Windows updater | Không đưa vào menu học sinh; quản trị backend không phải student UI | Riêng |
+Mỗi màn port phải có engine Dart hoặc logic local thực, unit/widget/E2E tương ứng, CI xanh exact SHA. Không được đánh dấu “đã chuyển” nếu chỉ có menu placeholder. 19.043 question IDs trong nguồn, 1.600 quarantined vẫn phải giữ và audit, không gán bài tùy tiện. Dữ liệu học tập trẻ em không được chuyển lên Prisma account.
 
-## Các chỗ chưa thể coi là hoàn thiện
-
-1. **Login chưa hoạt động online** trên backend staging trước migration `0003_accounts.sql` và deploy Hono auth mới. Bản PWA có auth gate sẽ yêu cầu login thật; nếu server chưa nâng cấp thì chưa vào được. Không phát hành production trong tình trạng đó.
-2. Phiên persist dùng local encrypted vault native; trên Web cần kiểm thử plugin secure storage và Safari Private Browsing/storage eviction. Không thể cam kết giữ session sau khi người dùng xóa app/storage hoặc server chủ động revoke vì an toàn.
-3. Audio, mini-game, daily challenge, huy hiệu, sơ đồ tư duy, trò chơi, đề luyện chưa được port; drawer hiển thị minh bạch, **không đánh dấu done**.
-4. Bảo vệ nội dung static PWA: JSON nội dung công khai không thể khóa bằng ẩn UI; entitlement phải tách.
-5. Core StudyLedger lưu local; tiến độ offline vẫn không gửi sang backend đăng nhập.
-6. QA screenshot iPhone/Safari/PWA và Android, navbar, bàn phím, quét QR, data loss, phiên offline/online; CI xanh chưa bằng chứng test máy thật.
-
-## Hướng thực thi
-
-- **Wave UI/Auth:** CI Dart analyzer, widget tests: login required, restore, explicit logout; menu đúng nhóm, bottom 4 tab, hero load assets.
-- **Wave Backend staging:** backup database hiện hữu, migration 0003, CORS staging origin, deploy commit CI xanh, live E2E register/login/restart/revoke/redeem.
-- **Wave chức năng legacy:** lần lượt Mini-Game/Thử thách → thành tựu/huy hiệu → âm thanh/đọc → phụ huynh nâng cao; mỗi chức năng port engine gốc sang Dart, viết test riêng, không gọi server lưu điểm.
-- **Go-live:** chỉ sau QA iPhone/Android thật và các gate privacy, license, storage.
+Tài liệu canonical: [EXECUTION_TRACKER.md](./EXECUTION_TRACKER.md), [HHK_HANDOFF.md](./HHK_HANDOFF.md).

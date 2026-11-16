@@ -1,48 +1,16 @@
-# HHK EXECUTION TRACKER
+# HHK CAP-01 — EXECUTION TRACKER
 
-> **Checkpoint mới về tài khoản & offline lease:** Xem [ACCOUNT_LICENSE_WORKFLOW.md](./ACCOUNT_LICENSE_WORKFLOW.md). Đã có source đăng nhập, QR trong app, đăng ký key cho tài khoản và ký/xác minh lease Ed25519 gắn thiết bị. Chờ CI SHA mới và backup trước khi migration 0003 trên staging; chưa deploy PWA hoặc production. Các đoạn ghi 'không có tài khoản'/'chưa có DB' phía dưới chỉ là lịch sử.
+Checkpoint 16/11/2026. Canonical plan: GitHub Issue #1. Work branch: staging. Source commit: 96fab7b901b24181896f42366a2b8fae16b6b135. CI run 43792138192 passed 5/5.
 
+- App testing URL: https://hhk-cap01-pwa.vercel.app/ (Vercel deployment dpl_7BfqKgWGkZRgXbF4c39EEmU9CMoE). Public production URL, but app currently connects to Prisma staging backend.
+- Backend staging: hhk-cap01-license-staging-gustavjung02-techs-projects.vercel.app, deployment dpl_E51phyPMRZSgWW6LA9VunrMEjGto. Auth registration, login, me, keys, logout verified by live API tests. Prisma hhk-staging migrations 0001, 0002 and 0003.
+- Pre-migration database snapshot of seven tables exists in schema hhk_pre_account_20261116. Same-database snapshot is not an offsite backup.
+- Current UI: Dopi login gate, persistent client session, user profile icon top right, hamburger menu top left, bottom tabs Home/Subjects/Practice/Settings, photo hero, local progress/review/parent basics.
+- Account limitations: no change password, forgot password, verified email or session management screens. Task #15 is P0.
+- Legacy feature inventory: Issue #14 and docs/LEGACY_APP_FEATURE_AUDIT.md. Many original app features remain not migrated. Real-device QA and question bank review still pending.
 
-> **Checkpoint cập nhật 15/11/2026 — #6:** Cơ sở dữ liệu `hhk-staging` hiện **READY**, đã chạy migrations 0001/0002; CI staging `11de041a` xanh. Prisma Compute bị chặn bởi `HostedStateBootstrapError` (existing unmanaged DB), không phải do thiếu database. Đã chọn backend Hono trên Vercel riêng, kết nối DB Prisma cũ; chỉ phát hành khi CI của commit mới xanh. Những dòng lịch sử phía dưới ghi "chưa có DB" là **đã lỗi thời**, không dùng làm trạng thái triển khai hiện hành. **Không thay đổi main/production.**
+Work order: (1) Issue #15 account recovery and security; (2) Issue #10 plus #2 iPhone/Android QA and UI fixes; (3) Issue #8 plus #7 one-time QR and device license live E2E; (4) Issue #3 and #4 study progress and question correctness; (5) Issue #14 and #5 legacy port/audio; (6) Issue #11 signed APK and release gates.
 
-**Nguồn trạng thái chuẩn:** [EPIC #1](https://github.com/gustavjung02-tech/hhk-cap01/issues/1) và issue con #2–#11.
+Rules: modify original source on staging, add tests, require green CI on exact SHA, deploy manually, update issue. Main and production database unchanged unless separately approved. Learner profiles, answers, XP and learning progress stay offline. QR redemption happens in app, not a separate website.
 
-## Đã có / chưa có (as of 15/11/2026)
-
-| Nền tảng | Đã xác nhận | Chưa hoàn tất |
-|---|---|---|
-| Repo/CI | Flutter-first + source grades 1–5, CI baseline xanh | E2E thiết bị thật, QA từng câu |
-| Flutter | UI học/quiz cơ bản, lưu grade/XP tốt nhất local | Multi-profile, tiến độ bền, badge/ôn tập, phân loại câu hỏi |
-| Content | 19.043 ID không mất, manifest SHA256 | 1.600 quarantine, nội dung và đáp án chưa duyệt |
-| Audio | Manifest + một số assets | File R2 thực, player & offline coverage |
-| Prisma | project gus-02, branches main/staging đã tạo | **Cả 2 DB chưa có, Compute app chưa có; API 503** |
-| PWA | Vercel production READY, manual-only, HTTP assets test | E2E Safari offline thật, entitlement |
-| Android | Flutter Android source + APK debug CI | Signing release, test phân phối |
-
-## Các Wave (không gán % tự ước lượng)
-**Wave A — app local:** #2 → #3 → #4, song song #5.
-**Wave B — Prisma staging & key:** #6 → #7 và #8.
-**Wave C — tích hợp và kiểm thử:** #9 → #10.
-**Wave D — release có kiểm soát:** #11.
-
-**Toàn bộ issue con:** 10. **Đã hoàn tất theo nghiệm thu:** 0. **Một phần:** 4. **Bị chặn:** 4. **Chưa bắt đầu:** 2.
-
-## Gate bắt buộc
-- Khởi động task: đọc issue và repo tương ứng, ghi nhận phụ thuộc.
-- Code: nhánh `staging`, test cụ thể, PR vào `main`; **CI xanh** là điều kiện tối thiểu.
-- Prisma: staging DB khác production DB, chạy migration staging trước; production cần quyền/duyệt riêng.
-- Vercel: manual-only plugin từ artifact kiểm tra đúng commit, không Git-linked auto-deploy.
-- Giao hàng: cập nhật issue checklist bằng link commit/CI, đóng issue chỉ khi DoD đạt; không nói xong khi scaffold còn 503.
-
-Chi tiết triển khai và đoạn bàn giao cho chat khác: [HHK_HANDOFF.md](./HHK_HANDOFF.md).
-
-## Checkpoint Wave A (15/11/2026)
-
-- **#3 IN PROGRESS:** cấu trúc local v2 với hồ sơ độc lập, transaction và idempotent attempt ID, migration v1 không xóa dữ liệu gốc, thống kê/ôn tập local, UI chọn/thêm hồ sơ. Test unit đã bổ sung; chờ CI/thiết bị thật để nghiệm thu.
-- **#4 IN PROGRESS:** chỉ chấm các kiểu có quy tắc chặt `true_false`, `single_choice`, `fill_number`; tạm ẩn các kiểu khác, không coi text/đa chọn là câu đúng mặc định. Chưa audit đủ 19.043 ID.
-- **#6 BLOCKED:** Prisma gus-02 không có database/Compute; vẫn chỉ đọc, chưa migration.
-- **Production:** không thay đổi; deployment manual-only, chưa phát hành đợt này.
-
-## Release check — service worker package integrity (15/11/2026)
-
-Artifact `hhk-flutter-web-pwa` từ CI `eca35560` có 48 file, nhưng worker yêu cầu thêm `/.last_build_id` — file ẩn bị `upload-artifact` loại bỏ. Điều này khiến bước install offline có thể fail dù build directory test pass. Lỗi được xác nhận trực tiếp trên ZIP, không phát hành ZIP đó. Bước sửa phải loại file volatile này khỏi precache, kiểm tra *artifact sau download* rồi mới deploy. Preview của `eca35560` được tạo thủ công qua Vercel GitSource, không bật auto-deploy; version khác artifact CI, cần so sánh trước khi promote.
+See docs/HHK_HANDOFF.md and docs/ACCOUNT_LICENSE_WORKFLOW.md for the handoff and account specifications.
