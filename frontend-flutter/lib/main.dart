@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'core/theme.dart';
 import 'data/catalog_repository.dart';
+import 'data/account_api.dart';
 import 'data/local_store.dart';
 import 'data/study_ledger.dart';
 import 'data/offline_license.dart';
