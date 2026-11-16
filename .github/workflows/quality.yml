@@ -83,6 +83,13 @@ jobs:
           node ../tooling/verify-pwa.mjs build/web
       - name: Android debug APK smoke
         run: flutter build apk --debug
+      - name: Retain Android debug APK for manual device QA (not signed release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: hhk-android-debug-apk
+          path: frontend-flutter/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 14
+          if-no-files-found: error
       - name: Retain tested Flutter Web files for manual Vercel deployment only
         uses: actions/upload-artifact@v4
         with:
