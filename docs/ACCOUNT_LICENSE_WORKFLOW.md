@@ -26,11 +26,12 @@
 Password ≥12 characters, ≤256 UTF-8 bytes. Recovery tokens are 256-bit random values; DB stores SHA-256 digests and 20-minute expiry. Security audit excludes passwords and raw tokens. Session token is persisted in Flutter secure vault and does not expire daily; logout/revoke/reset/storage eviction can end it. On change password Flutter must store rotated token before displaying success.
 
 ## Current release evidence and limitations
-- Source SHA `d35589d9`, [5/5 CI](https://github.com/gustavjung02-tech/hhk-cap01/actions/runs/43799028874). Backend staging deploy `dpl_GVt4esjyVUec7KSjFxsZZE4hgEhr` READY.
+- Source SHA `d35589d9`, [5/5 CI](https://github.com/gustavjung02-tech/hhk-cap01/actions/runs/43799028874). Backend staging deploy `dpl_2pM9i7fN4JEvYR1qMuvACh98pqJj` READY.
 - hhk-staging migration 0004 applied transactionally; 0001–0004 present, 2 original accounts / 3 sessions / 1 license / 1 QR preserved. Provider-managed extension excluded **only from isolated generic PostgreSQL restore rehearsal**, not from live Prisma.
 - Backup `hhk-staging-pre0004-20261116.dump` on separate Vercel Drive (iad1), SHA256 verified, restored to disposable PostgreSQL 18 with row counts matching.
 - Resend domain `fbmn.vn` verified; sending-only key encrypted in preview `staging`, `HHK_MAIL_FROM` and `HHK_PUBLIC_APP_URL` set. Actual email verified as delivered **and received** in controlled test mailbox.
 - Live verified-email token consumption/reset/rotation and physical iPhone/Android E2E are still pending. CI integration passed disposable-PostgreSQL expiry, replay, rotation, session scope tests. Backend HTTP health, key schema and authentication gate were checked live.
+- Isolated PWA QA preview https://hhk-cap01-119on2jr8-gustavjung02-techs-projects.vercel.app READY from the exact CI Flutter artifact; static root/JS/manifest/SW/asset HTTP 200; backend staging `dpl_2pM9i7fN4JEvYR1qMuvACh98pqJj` allows exact origin via CORS (204). Stage-only `HHK_PUBLIC_APP_URL` now points to this preview for verification/reset links; live browser token flows not yet confirmed.
 - PWA production test alias https://hhk-cap01-pwa.vercel.app deliberately remains pre-#15; do not promote before manual device QA. Do not touch `main` or Prisma production DB without explicit approval.
 
 See [detailed backup and rollback runbook](./ACCOUNT_SECURITY_RELEASE_20261116.md).

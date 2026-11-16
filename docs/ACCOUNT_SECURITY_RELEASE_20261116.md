@@ -4,7 +4,7 @@ Date: 2026-11-16 UTC+7. **Staging only.** Backup and migration were authorized f
 ## Git/CI/deployment provenance
 - Source SHA: `d35589d9aa899ca6f1c8cec9af7042fd0dc75aea`, CI [43799028874](https://github.com/gustavjung02-tech/hhk-cap01/actions/runs/43799028874) success 5/5.
 - Applied exact repo `db-prisma/migrations/0004_account_security.sql` (blob SHA `4f817cad449a4cf9ad1bf1c99c7e61a86497be6e`) to Prisma staging DB `db_l4ds0m8jnxux66bd3erlnvqe`.
-- Backend Vercel project `prj_F7zDPvMW9C8k8j2gw5Z8bSIfntPM`, staging deployment `dpl_GVt4esjyVUec7KSjFxsZZE4hgEhr`, READY.
+- Backend Vercel project `prj_F7zDPvMW9C8k8j2gw5Z8bSIfntPM`, staging deployment `dpl_2pM9i7fN4JEvYR1qMuvACh98pqJj`, READY.
 - Health: 200 ready. Public key: `hhk-offline-license-v1` Ed25519. Unauthorized GET sessions: HTTP 401. Mail: verified Resend sender, controlled email delivered and received.
 
 ## Off-database backup and tested restore
@@ -30,8 +30,14 @@ Tables `account_action_tokens`, `account_action_throttle`, `account_security_aud
 - One-time email token consumption across connector boundaries was blocked by security handling, so live reset/replay/change-session integration is **not** marked done. Disposable PostgreSQL integration/Flutter tests cover those routes.
 - Do not publish #15 Flutter PWA onto production-test alias before manual Safari iPhone and Android QA. The current public PWA test alias remains pre-#15.
 
+## Isolated QA preview (after migration)
+- PWA preview deployment `dpl_BLccHZHiWg8PzjQAbD714aGUieAL` at https://hhk-cap01-119on2jr8-gustavjung02-techs-projects.vercel.app, READY, from exact CI artifact `d35589d9` (50 Flutter Web files).
+- GET root/index, main.dart.js, manifest.json, hhk-sw.js and Dopi avatar asset all returned HTTP 200; staging backend after re-deploy `dpl_2pM9i7fN4JEvYR1qMuvACh98pqJj` returned health 200, CORS OPTIONS HTTP 204 with exact preview Allow-Origin.
+- Backend staging only now sets `HHK_PUBLIC_APP_URL` to isolated preview and adds it to `HHK_ALLOWED_ORIGINS`. No wildcard, no production PWA test alias changes. Verified email link host must be checked with a new controlled mail message before PWA promotion.
+- First #15 backend staging deployment before this env refresh was `dpl_GVt4esjyVUec7KSjFxsZZE4hgEhr`.
+
 ## Rollback / follow-up
 - Previous backend staging deployment: `dpl_E51phyPMRZSgWW6LA9VunrMEjGto`. Backend rollback alone must be checked for compatibility with additive 0004; do not drop 0004 in a hot incident.
-- New backend staging deployment: `dpl_GVt4esjyVUec7KSjFxsZZE4hgEhr`.
+- New backend staging deployment: `dpl_2pM9i7fN4JEvYR1qMuvACh98pqJj`.
 - Previous public PWA test deployment: `dpl_7BfqKgWGkZRgXbF4c39EEmU9CMoE`, rollback fallback `dpl_GSobToSsy1tm4VkkKZskSA6nAQab`.
 - Next exact gates: controlled live browser action-token/rotation/revoke E2E → manual iPhone Safari and Android device QA → manual release of tested PWA artifact to public test alias → HTTP/service-worker/offline regression → next Issue #8/#7/#9, then legacy #14.

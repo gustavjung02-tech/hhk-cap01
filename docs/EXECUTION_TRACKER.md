@@ -7,11 +7,12 @@ Canonical plan: GitHub Issue #1. Checkpoint: 16/11/2026 UTC+7. Branch: `staging`
 | 5-job exact-SHA CI | [run 43799028874](https://github.com/gustavjung02-tech/hhk-cap01/actions/runs/43799028874) | PASS |
 | Staging DB restore-capable backup | Vercel Drive `hhk-staging-db-backups` (iad1), `hhk-staging-pre0004-20261116.dump`, SHA256 verified; isolated PostgreSQL 18 restore counts matched | PASS |
 | SQL migration 0004 | hhk-staging only, ledger 0001–0004, 3 security tables and email verification column | PASS |
-| Backend staging release | `dpl_GVt4esjyVUec7KSjFxsZZE4hgEhr` `READY`; health ready / public-key valid / unauthorized sessions 401 | PASS |
+| Backend staging release | `dpl_2pM9i7fN4JEvYR1qMuvACh98pqJj` `READY`; health ready / public-key valid / unauthorized sessions 401 | PASS |
 | Recovery mail sender | Resend `fbmn.vn`, Vercel staging env sending-only domain-scoped key and sender; QA verify email delivered and received | PASS |
 | Forgot privacy regression | Unknown and unverified addresses same 200 neutral; no reset mail for either | PASS |
 | Live verified-link reset & session rotation | Token handoff between mailbox and backend blocked by connector security; CI PostgreSQL tests pass, no live proof | PENDING |
 | iPhone Safari / Android physical QA | No real device test evidence | PENDING (#10) |
+| #15 PWA isolated preview | [Preview](https://hhk-cap01-119on2jr8-gustavjung02-techs-projects.vercel.app) READY `dpl_BLccHZHiWg8PzjQAbD714aGUieAL`; CI artifact 50 files; root, JS, manifest, SW, Dopi asset GET 200; backend OPTIONS origin 204 exact allow-origin | PASS (preview smoke only) |
 | PWA public test alias | `dpl_7BfqKgWGkZRgXbF4c39EEmU9CMoE` unchanged | HELD per gate |
 | Production DB migration / main merge | Not authorized, never initiated | NOT DONE |
 
