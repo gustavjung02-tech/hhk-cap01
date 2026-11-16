@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../data/account_api.dart';
+import 'account_security_page.dart';
 
 /// Parent/user account and key registry. Learner profiles remain offline-only.
 class AccountPage extends StatefulWidget {
@@ -151,6 +152,29 @@ class _AccountPageState extends State<AccountPage> {
     }
   }
 
+  Future<void> changePassword() async {
+    final current=session;
+    if (current==null || busy)return;
+    final rotated=await Navigator.of(context).push<AccountSession>(
+      MaterialPageRoute(builder:(_)=>ChangePasswordPage(api:api,session:current)));
+    if(rotated!=null && mounted)setState(()=>session=rotated);
+  }
+
+  Future<void> openSessions() async {
+    final current=session;
+    if(current==null || busy)return;
+    await Navigator.of(context).push<void>(MaterialPageRoute(
+      builder:(_)=>AccountSessionsPage(api:api,session:current,
+        onSignedOut:widget.onSignedOut)));
+  }
+
+  Future<void> requestVerification() => run(() async {
+    if(session==null)return;
+    await api.requestEmailVerification(session!.email);
+    if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content:Text('Nếu email chưa xác minh, một liên kết xác nhận sẽ được gửi.')));
+  });
+
   Future<void> signOut() => run(() async {
         final old = session;
         if (old == null) return;
@@ -232,12 +256,32 @@ class _AccountPageState extends State<AccountPage> {
           child: ListTile(
             leading: const Icon(Icons.account_circle_outlined),
             title: Text(session!.email),
-            subtitle: const Text('Phiên đăng nhập chỉ giữ trong bộ nhớ của app.'),
+            subtitle: Text(session!.emailVerified
+              ? 'Email đã xác minh • Phiên được lưu an toàn trên thiết bị'
+              : 'Email chưa xác minh • Phiên được lưu an toàn trên thiết bị'),
             trailing: TextButton(
                 onPressed: busy ? null : signOut,
                 child: const Text('Đăng xuất')),
           ),
         ),
+        const SizedBox(height: 8),
+        Card(child:Column(children:[
+          ListTile(leading:const Icon(Icons.lock_outline),
+            title:const Text('Đổi mật khẩu'),trailing:const Icon(Icons.chevron_right),
+            onTap:busy?null:changePassword),
+          ListTile(leading:const Icon(Icons.devices_outlined),
+            title:const Text('Thiết bị đăng nhập'),trailing:const Icon(Icons.chevron_right),
+            onTap:busy?null:openSessions),
+          ListTile(leading:const Icon(Icons.alternate_email),
+            title:const Text('Đổi email'),trailing:const Icon(Icons.chevron_right),
+            onTap:busy||session==null?null:()=>Navigator.of(context).push(
+              MaterialPageRoute<void>(builder:(_)=>EmailChangePage(api:api,session:session!)))),
+          if(!session!.emailVerified)
+            ListTile(leading:const Icon(Icons.mark_email_unread_outlined),
+              title:const Text('Gửi email xác minh'),
+              subtitle:const Text('Cần xác minh email để khôi phục mật khẩu'),
+              onTap:busy?null:requestVerification),
+        ])),
         const SizedBox(height: 8),
         Card(
           child: Padding(

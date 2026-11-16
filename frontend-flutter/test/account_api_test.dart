@@ -94,4 +94,35 @@ void main() {
             .having((e)=>e.code,'code','INVALID_TOKEN')));
     api.close();
   });
+
+  test('password rotation and security actions use server and bearer',() async {
+    final calls=<String>[];
+    const original=AccountSession('sess_old','parent@example.test',emailVerified:true);
+    final api=AccountApi(baseUrl:'https://api.example.test',client:MockClient((request)async{
+      calls.add(request.url.path);
+      if(request.url.path.contains('/account/') && 
+         !request.url.path.endsWith('/account/me')){
+        expect(request.headers['authorization'],'Bearer sess_old');
+      }
+      if(request.url.path.endsWith('/password/change')){
+        expect(jsonDecode(request.body)['currentPassword'],'old-password-123');
+        return http.Response('{"ok":true,"sessionToken":"sess_new"}',200);
+      }
+      if(request.url.path.endsWith('/account/sessions')){
+        return http.Response('{"ok":true,"sessions":[{"id":"a","label":"iPhone","current":true,"createdAt":"2026-01-01T00:00:00Z","lastUsedAt":"2026-01-02T00:00:00Z"}]}',200);
+      }
+      return http.Response('{"ok":true,"requested":true}',200);
+    }));
+    final rotated=await api.changePassword(original,'old-password-123','new-password-123');
+    expect(rotated.token,'sess_new');
+    expect(rotated.emailVerified,true);
+    final sessions=await api.sessions(original);
+    expect(sessions.single.current,true);
+    await api.forgotPassword('parent@example.test');
+    await api.requestEmailVerification('parent@example.test');
+    await api.requestEmailChange(original,'new@example.test','old-password-123');
+    expect(calls,contains('/api/v1/accounts/password/forgot'));
+    api.close();
+  });
+
 }

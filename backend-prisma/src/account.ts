@@ -31,6 +31,7 @@ type LoginRow = {
   password_hash: Buffer;
   failed_logins: number;
   locked_until: Date | null;
+  email_verified_at: Date | null;
 };
 export type AccountIdentity = { id: string; email: string; emailVerified: boolean };
 
@@ -82,7 +83,7 @@ export class AccountService {
     }
     return transaction(this.pool, async client => {
       const result = await client.query<LoginRow>(
-        'SELECT id,email,password_salt,password_hash,failed_logins,locked_until FROM app_accounts WHERE email=$1 FOR UPDATE',
+        'SELECT id,email,password_salt,password_hash,failed_logins,locked_until,email_verified_at FROM app_accounts WHERE email=$1 FOR UPDATE',
         [email]
       );
       const row = result.rows[0];
@@ -118,8 +119,8 @@ export class AccountService {
         'INSERT INTO account_sessions(id,account_id,token_hash,expires_at,device_label) VALUES ($1,$2,$3,NULL,$4)',
         [randomUUID(), row.id, digest(sessionToken), label]
       );
-      return {error: false as const, account: {id: row.id, email: row.email},
-        sessionToken};
+      return {error: false as const, account: {id: row.id, email: row.email,
+        emailVerified: row.email_verified_at !== null}, sessionToken};
     }).then(result => {
       if (result.error) throw new ApiFault(401, 'INVALID_CREDENTIALS');
       return result;

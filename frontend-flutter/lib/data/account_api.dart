@@ -16,7 +16,17 @@ class AccountApiException implements Exception {
         'TOKEN_NOT_FOUND' => 'Không tìm thấy mã QR này.',
         'KEY_ALREADY_LINKED' => 'Key này đã gắn với tài khoản khác.',
         'LICENSE_NOT_FOUND' => 'Không tìm thấy key.',
-        'UNAUTHORIZED' => 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+        'UNAUTHORIZED' => 'Phiên bị thu hồi. Vui lòng đăng nhập lại.',
+        'INVALID_ACTION_TOKEN' => 'Liên kết không hợp lệ, đã hết hạn hoặc đã được dùng.',
+        'PASSWORD_UNCHANGED' => 'Mật khẩu mới phải khác mật khẩu hiện tại.',
+        'CURRENT_SESSION' => 'Không thể thu hồi máy hiện tại ở đây.',
+        'SESSION_NOT_FOUND' => 'Phiên thiết bị không còn hoạt động.',
+        'RATE_LIMITED' => 'Đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau.',
+        'EMAIL_NOT_CONFIGURED' => 'Email xác minh chưa được cấu hình trên máy chủ.',
+        'EMAIL_DELIVERY_FAILED' => 'Không gửi được email. Vui lòng thử lại sau.',
+        'EMAIL_UNCHANGED' => 'Email mới phải khác email hiện tại.',
+        'SESSION_STORAGE_UNAVAILABLE' => 'Không cập nhật được phiên an toàn. Vui lòng đăng nhập lại.',
+        'NETWORK_UNAVAILABLE' => 'Không thể kết nối máy chủ. Vui lòng thử lại.',
         'NOT_CONFIGURED' || 'SERVICE_UNAVAILABLE' =>
           'Máy chủ đang chuẩn bị, vui lòng thử lại sau.',
         _ => 'Không thể hoàn tất yêu cầu ($code).',
@@ -58,7 +68,27 @@ class AccountKey {
 class AccountSession {
   final String token;
   final String email;
-  const AccountSession(this.token, this.email);
+  final bool emailVerified;
+  const AccountSession(this.token, this.email, {this.emailVerified = false});
+}
+
+class AccountDeviceSession {
+  final String id;
+  final String label;
+  final bool current;
+  final DateTime createdAt;
+  final DateTime lastUsedAt;
+  const AccountDeviceSession({
+    required this.id, required this.label, required this.current,
+    required this.createdAt, required this.lastUsedAt,
+  });
+  factory AccountDeviceSession.fromJson(Map<String, dynamic> row) =>
+      AccountDeviceSession(
+        id: row['id'] as String, label: row['label'] as String,
+        current: row['current'] == true,
+        createdAt: DateTime.parse(row['createdAt'] as String),
+        lastUsedAt: DateTime.parse(row['lastUsedAt'] as String),
+      );
 }
 
 class RedeemedLicense {
@@ -87,6 +117,17 @@ class AccountApi {
           'https://hhk-cap01-license-staging-gustavjung02-techs-projects.vercel.app');
   final String baseUrl;
   final http.Client _client;
+  /// Installed by AuthGateway: rotated credentials must be securely persisted
+  /// before the change-password UI reports success.
+  Future<void> Function(AccountSession)? onSessionRotated;
+
+  Future<void> acceptRotatedSession(AccountSession next) async {
+    final save = onSessionRotated;
+    if (save == null) {
+      throw const AccountApiException('SESSION_STORAGE_UNAVAILABLE');
+    }
+    await save(next);
+  }
 
   AccountApi({String baseUrl = defaultBase, http.Client? client})
       : baseUrl = baseUrl.replaceAll(RegExp(r'/$'), ''),
@@ -131,7 +172,8 @@ class AccountApi {
         body: {'email': email, 'password': password});
     final account = result['account'] as Map<String, dynamic>;
     return AccountSession(result['sessionToken'] as String,
-        account['email'] as String);
+        account['email'] as String,
+        emailVerified: account['emailVerified'] == true);
   }
 
   Future<void> register(String email, String password) async {
@@ -142,7 +184,61 @@ class AccountApi {
   Future<AccountSession> me(AccountSession session) async {
     final result = await _call('/api/v1/account/me', token: session.token);
     final account = result['account'] as Map<String, dynamic>;
-    return AccountSession(session.token, account['email'] as String);
+    return AccountSession(session.token, account['email'] as String,
+        emailVerified: account['emailVerified'] == true);
+  }
+
+  Future<void> requestEmailVerification(String email) async {
+    await _call('/api/v1/accounts/email/verification/request',body: {'email':email});
+  }
+
+  Future<void> verifyEmail(String token) async {
+    await _call('/api/v1/accounts/email/verify',body: {'token': token});
+  }
+
+  Future<void> forgotPassword(String email) async {
+    await _call('/api/v1/accounts/password/forgot',body: {'email': email});
+  }
+
+  Future<void> resetPassword(String token, String newPassword) async {
+    await _call('/api/v1/accounts/password/reset',
+      body: {'token': token, 'newPassword': newPassword});
+  }
+
+  Future<AccountSession> changePassword(AccountSession current,
+      String currentPassword, String newPassword) async {
+    final result=await _call('/api/v1/account/password/change',
+      token:current.token,body: {
+        'currentPassword':currentPassword,'newPassword':newPassword
+      });
+    return AccountSession(result['sessionToken'] as String,current.email,
+        emailVerified:current.emailVerified);
+  }
+
+  Future<List<AccountDeviceSession>> sessions(AccountSession session) async {
+    final result=await _call('/api/v1/account/sessions',token:session.token);
+    return (result['sessions'] as List)
+      .map((x)=>AccountDeviceSession.fromJson(Map<String,dynamic>.from(x as Map)))
+      .toList();
+  }
+
+  Future<void> revokeSession(AccountSession session,String id) async {
+    await _call('/api/v1/account/sessions/revoke',
+        token:session.token,body:{'sessionId':id});
+  }
+
+  Future<void> logoutAll(AccountSession session) async {
+    await _call('/api/v1/account/logout-all',token:session.token,body:{});
+  }
+
+  Future<void> requestEmailChange(AccountSession session,
+      String newEmail,String currentPassword) async {
+    await _call('/api/v1/account/email/change/request',token:session.token,
+        body:{'newEmail':newEmail,'currentPassword':currentPassword});
+  }
+
+  Future<void> confirmEmailChange(String token) async {
+    await _call('/api/v1/accounts/email/change/confirm',body:{'token':token});
   }
 
   Future<List<AccountKey>> keys(AccountSession session) async {
