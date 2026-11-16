@@ -30,7 +30,9 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     }on AccountApiException catch(e){
       if(mounted)setState(()=>error=e.message);
     }catch(_){
-      if(mounted)setState(()=>error='Không thể lưu phiên mới. Hãy đăng nhập lại.');
+      if (mounted) {
+        setState(() => error = 'Không thể lưu phiên mới. Hãy đăng nhập lại.');
+      }
     }finally{
       if(mounted)setState(()=>busy=false);
     }
