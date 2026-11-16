@@ -316,7 +316,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ])),
           const SizedBox(height: 18),
           NativeHeading('Danh sách môn học',
-            action: subjects.length.toString() + ' môn'),
+            action: '${subjects.length} môn'),
           const SizedBox(height: 8),
           if (subjects.isEmpty)
             const NativePanel(child: Text('Chưa có môn học cho lớp này.')),
@@ -339,9 +339,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: const TextStyle(color: HhkNative.ink,
                           fontWeight: FontWeight.w800, fontSize: 15)),
                       const SizedBox(height: 5),
-                      Text(pack.lessonsFor(
-                        subject['code']?.toString() ?? '').length.toString()
-                        + ' bài học',
+                      Text('${pack.lessonsFor(subject['code']?.toString() ?? '').length} bài học',
                         style: const TextStyle(color: HhkNative.muted,
                           fontSize: 12)),
                     ])),
@@ -476,7 +474,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: HhkNative.pink),
                     const SizedBox(height: 19),
                     NativeHeading('Chọn bài luyện',
-                      action: lessons.length.toString() + ' bài'),
+                      action: '${lessons.length} bài'),
                     if (lessons.isEmpty)
                       const NativePanel(child: Text(
                         'Lớp này chưa có câu hỏi có thể chấm điểm.')),
@@ -639,8 +637,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     return Column(crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         NativeDopiBanner(title: 'Cùng học $title!',
-                          subtitle: lessons.length.toString() +
-                            ' bài trong giáo trình'),
+                          subtitle: '${lessons.length} bài trong giáo trình'),
                         const SizedBox(height: 16),
                         Row(children: [
                           ChoiceChip(label: const Text('Tất cả'),
@@ -653,7 +650,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ]),
                         const SizedBox(height: 12),
                         NativeHeading('Bài học',
-                          action: visible.length.toString() + ' bài'),
+                          action: '${visible.length} bài'),
                         if (visible.isEmpty)
                           const NativePanel(child: Text(
                             'Chưa có bài đã luyện. Chọn Tất cả để bắt đầu!')),

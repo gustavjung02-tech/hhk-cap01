@@ -138,7 +138,7 @@ class NativeLessonRow extends StatelessWidget {
               fontSize: 14, color: HhkNative.ink)),
           const SizedBox(height: 5),
           Text(progress == null ? 'Chưa luyện tập' :
-              'Đã luyện ' + progress!.attempts.toString() + ' lượt',
+              'Đã luyện ${progress!.attempts} lượt',
             style: const TextStyle(fontSize: 11, color: HhkNative.muted)),
           if (progress != null) ...[
             const SizedBox(height: 9),
@@ -149,7 +149,7 @@ class NativeLessonRow extends StatelessWidget {
                   valueColor: const AlwaysStoppedAnimation<Color>(
                     HhkNative.purple)))),
               const SizedBox(width: 8),
-              Text(progress!.bestCorrect.toString() + '/$total',
+              Text('${progress!.bestCorrect}/$total',
                 style: const TextStyle(fontSize: 10, color: HhkNative.muted)),
             ]),
           ],
