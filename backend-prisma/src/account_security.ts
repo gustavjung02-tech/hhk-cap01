@@ -113,7 +113,10 @@ export class AccountSecurityService {
     const result = await this.pool.query<{id:string; email_verified_at:Date|null}>(
       'SELECT id,email_verified_at FROM app_accounts WHERE email=$1',[email]);
     const account = result.rows[0];
-    if (account && !account.email_verified_at) await this.sendToken(account.id,email,'verify');
+    if (account && !account.email_verified_at) {
+      // Never disclose whether an address is registered through delivery failures.
+      try { await this.sendToken(account.id,email,'verify'); } catch { /* neutral */ }
+    }
     return {requested:true};
   }
 
@@ -129,7 +132,10 @@ export class AccountSecurityService {
     if (!allowed || !allowedIp) return {requested:true};
     const found=await this.pool.query<{id:string}>(
       'SELECT id FROM app_accounts WHERE email=$1 AND email_verified_at IS NOT NULL',[email]);
-    if (found.rows[0]) await this.sendToken(found.rows[0].id,email,'reset');
+    if (found.rows[0]) {
+      // Unknown, unverified and mail-delivery failure have identical responses.
+      try { await this.sendToken(found.rows[0].id,email,'reset'); } catch { /* neutral */ }
+    }
     return {requested:true};
   }
 
@@ -203,7 +209,8 @@ export class AccountSecurityService {
 
   async changePassword(accountId: string, header: string|undefined, body: unknown) {
     const p=body as Record<string,unknown>|null;
-    if (typeof p?.currentPassword!=='string' || p.currentPassword.length>256) {
+    if (typeof p?.currentPassword!=='string' ||
+        Buffer.byteLength(p.currentPassword,'utf8')>256) {
       throw new ApiFault(400,'INVALID_CREDENTIALS');
     }
     if (!validPassword(p?.newPassword)) throw new ApiFault(400,'WEAK_PASSWORD');
@@ -301,7 +308,10 @@ export class AccountSecurityService {
   async requestEmailChange(accountId:string,body:unknown) {
     const p=body as Record<string,unknown>|null;
     const target=normalizeEmail(p?.newEmail);
-    if (typeof p?.currentPassword!=='string') throw new ApiFault(401,'INVALID_CREDENTIALS');
+    if (typeof p?.currentPassword!=='string' ||
+        Buffer.byteLength(p.currentPassword,'utf8')>256) {
+      throw new ApiFault(401,'INVALID_CREDENTIALS');
+    }
     const result=await this.pool.query<{email:string;password_hash:Buffer;password_salt:Buffer}>(
       'SELECT email,password_hash,password_salt FROM app_accounts WHERE id=$1',[accountId]);
     const row=result.rows[0];

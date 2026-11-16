@@ -192,11 +192,18 @@ class _AuthGatewayState extends State<AuthGateway> {
       message = null;
     });
     try {
-      if (register) {
+      final newlyRegistered = register;
+      if (newlyRegistered) {
         await api.register(email.text, password.text);
       }
       final next = await api.login(email.text, password.text);
       await vault.save(next); // Never enter the app before secure save succeeds.
+      if (newlyRegistered) {
+        // Best-effort: verification is mandatory for recovery, not for local study.
+        try { await api.requestEmailVerification(next.email); } catch (_) {
+          // The account page offers a resend action when email is configured.
+        }
+      }
       if (mounted) {
         setState(() {
           session = next;

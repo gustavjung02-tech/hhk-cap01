@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 /// This is a *server* account. Nothing here changes the offline student ledger.
@@ -167,9 +168,21 @@ class AccountApi {
     }
   }
 
+  String get deviceLabel {
+    if (kIsWeb) return 'Trình duyệt web';
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.iOS => 'iPhone / iPad',
+      TargetPlatform.android => 'Thiết bị Android',
+      TargetPlatform.macOS => 'Máy Mac',
+      TargetPlatform.windows => 'Máy Windows',
+      TargetPlatform.linux => 'Máy Linux',
+      _ => 'Thiết bị HHK',
+    };
+  }
+
   Future<AccountSession> login(String email, String password) async {
     final result = await _call('/api/v1/accounts/login',
-        body: {'email': email, 'password': password});
+        body: {'email': email, 'password': password, 'deviceLabel': deviceLabel});
     final account = result['account'] as Map<String, dynamic>;
     return AccountSession(result['sessionToken'] as String,
         account['email'] as String,
