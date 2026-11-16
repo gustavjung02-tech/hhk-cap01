@@ -31,3 +31,11 @@
 
 ## Prompt mở chat tiếp theo
 Tiếp tục HHK CAP-01. Đọc GitHub Issue #1, #15, #9, #14 và docs/EXECUTION_TRACKER.md, docs/HHK_HANDOFF.md, docs/ACCOUNT_LICENSE_WORKFLOW.md trên staging. Baseline CI xanh commit 96fab7b9, PWA production URL dùng backend Prisma staging migration 0003. Thực hiện P0 #15: đổi mật khẩu, quên mật khẩu qua email xác minh, quản lý phiên máy, UI/account và regression tests; có migration additive và backup nếu cần. Giữ phiên máy đang dùng khi đổi pass, revoke các phiên khác; reset pass revoke mọi phiên. CI xanh rồi mới deploy; cập nhật Issue #1/#15 và bàn giao ngắn. Không hỏi lại thông tin đã có.
+
+---
+## 16/11/2026 — Issue #15 new source checkpoint (supersedes older NOT_STARTED paragraphs)
+- Account security implementation was committed on **staging** (starting at 7562c55d; latest source checkpoint a9334d57). It is NOT deployed or migrated yet. Flutter: change password, forgot password, verified email actions, session/device list, revoke, logout all, email change; Hono: account security transactions with scrypt + renewed salt, rotating current bearer and revoking other sessions, verified email one-time 20-minute recovery tokens, reset revokes every session.
+- New additive migration: db-prisma/migrations/0004_account_security.sql. At preflight database hhk-staging has ONLY migrations 0001–0003 and 2 accounts / 3 sessions / 1 license / 1 claim. Do not apply 0004 without a verified restore-capable staging backup.
+- Resend account has verified sender domain fbmn.vn. Vercel staging backend environment was missing RESEND_API_KEY, HHK_MAIL_FROM and HHK_PUBLIC_APP_URL; email delivery cannot be claimed live.
+- Prisma automated backup listing returned zero backups. The old in-database schema snapshot is NOT an offsite backup. Stop migration until backup/restore is verified. PWA public test alias remains the older tested build; main and production DB remain untouched.
+- Source CI must pass exact HEAD 5/5 before staging migration/deploy. Then configure email secrets securely, backup and migrate staging, smoke backend, email verification/reset/pass rotation/session E2E. Only after iPhone Safari/Android QA should the PWA test alias be updated. Update Issue #1/#15 with concrete evidence. See tracker and account workflow.
