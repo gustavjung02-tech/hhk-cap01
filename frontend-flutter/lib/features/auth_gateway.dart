@@ -115,7 +115,9 @@ class _AuthGatewayState extends State<AuthGateway> {
       message = null;
     });
     try {
-      if (register) await api.register(email.text, password.text);
+      if (register) {
+        await api.register(email.text, password.text);
+      }
       final next = await api.login(email.text, password.text);
       await vault.save(next); // Never enter the app before secure save succeeds.
       if (mounted) {
