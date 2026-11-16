@@ -24,7 +24,9 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     try{
       final rotated=await widget.api.changePassword(widget.session,current.text,next.text);
       await widget.api.acceptRotatedSession(rotated);
-      if(mounted) Navigator.pop(context,rotated);
+      if (mounted) {
+        Navigator.pop(context, rotated);
+      }
     }on AccountApiException catch(e){
       if(mounted)setState(()=>error=e.message);
     }catch(_){
@@ -116,8 +118,7 @@ class _AccountSessionsPageState extends State<AccountSessionsPage> {
         Card(child:ListTile(
           leading:Icon(device.current?Icons.phone_android:Icons.devices_outlined),
           title:Text(device.label),
-          subtitle:Text((device.current?'Máy hiện tại • ':'')+
-            'Hoạt động: '+device.lastUsedAt.toLocal().toString().split('.').first),
+          subtitle:Text('${device.current ? 'Máy hiện tại • ' : ''}Hoạt động: ${device.lastUsedAt.toLocal().toString().split('.').first}'),
           trailing:device.current
             ?const Icon(Icons.check_circle_outline)
             :TextButton(onPressed:busy?null:()=>revoke(device.id),child:const Text('Thu hồi')),
@@ -147,7 +148,9 @@ class _EmailChangePageState extends State<EmailChangePage> {
     setState((){busy=true;message=null;});
     try{
       await widget.api.requestEmailChange(widget.session,email.text,password.text);
-      if(mounted)setState(()=>message='Đã gửi liên kết xác minh đến email mới.');
+      if (mounted) {
+        setState(() => message = 'Đã gửi liên kết xác minh đến email mới.');
+      }
     }on AccountApiException catch(e){
       if(mounted)setState(()=>message=e.message);
     }finally{if(mounted)setState(()=>busy=false);}
@@ -206,7 +209,9 @@ class _AccountEmailActionPageState extends State<AccountEmailActionPage>{
     }on AccountApiException catch(e){
       if(mounted)setState(()=>message=e.message);
     }catch(_){
-      if(mounted)setState(()=>message='Không thể hoàn tất. Vui lòng thử lại.');
+      if (mounted) {
+        setState(() => message = 'Không thể hoàn tất. Vui lòng thử lại.');
+      }
     }finally{if(mounted)setState(()=>busy=false);}
   }
   @override

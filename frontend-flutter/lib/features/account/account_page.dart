@@ -157,7 +157,9 @@ class _AccountPageState extends State<AccountPage> {
     if (current==null || busy)return;
     final rotated=await Navigator.of(context).push<AccountSession>(
       MaterialPageRoute(builder:(_)=>ChangePasswordPage(api:api,session:current)));
-    if(rotated!=null && mounted)setState(()=>session=rotated);
+    if (rotated != null && mounted) {
+      setState(() => session = rotated);
+    }
   }
 
   Future<void> openSessions() async {
@@ -171,8 +173,10 @@ class _AccountPageState extends State<AccountPage> {
   Future<void> requestVerification() => run(() async {
     if(session==null)return;
     await api.requestEmailVerification(session!.email);
-    if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content:Text('Nếu email chưa xác minh, một liên kết xác nhận sẽ được gửi.')));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content:Text('Nếu email chưa xác minh, một liên kết xác nhận sẽ được gửi.')));
+    }
   });
 
   Future<void> signOut() => run(() async {

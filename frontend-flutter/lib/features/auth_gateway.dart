@@ -92,11 +92,13 @@ class _AuthGatewayState extends State<AuthGateway> {
   Future<void> _actionCompleted(bool reset) async {
     if(reset){
       await vault.clear();
-      if(mounted)setState(() {
-        session=null;
-        message='Đã đặt lại mật khẩu. Hãy đăng nhập bằng mật khẩu mới.';
-        actionHandled=true;
-      });
+      if (mounted) {
+        setState(() {
+          session=null;
+          message='Đã đặt lại mật khẩu. Hãy đăng nhập bằng mật khẩu mới.';
+          actionHandled=true;
+        });
+      }
     }else{
       final current=session;
       if(current!=null){
@@ -106,10 +108,12 @@ class _AuthGatewayState extends State<AuthGateway> {
           if(mounted)setState(()=>session=refreshed);
         }catch(_){ /* Server still enforces email proof. */ }
       }
-      if(mounted)setState(() {
-        message='Email đã xác minh. Có thể tiếp tục sử dụng tài khoản.';
-        actionHandled=true;
-      });
+      if (mounted) {
+        setState(() {
+          message='Email đã xác minh. Có thể tiếp tục sử dụng tài khoản.';
+          actionHandled=true;
+        });
+      }
     }
   }
 
@@ -118,8 +122,10 @@ class _AuthGatewayState extends State<AuthGateway> {
     setState(() {busy=true;message=null;});
     try{
       await api.forgotPassword(email.text);
-      if(mounted)setState(()=>message=
-        'Nếu email đã được xác minh, liên kết đặt lại mật khẩu sẽ được gửi đến hộp thư.');
+      if (mounted) {
+        setState(()=>message=
+          'Nếu email đã được xác minh, liên kết đặt lại mật khẩu sẽ được gửi đến hộp thư.');
+      }
     }on AccountApiException catch(e){
       if(mounted)setState(()=>message=e.message);
     }finally{
