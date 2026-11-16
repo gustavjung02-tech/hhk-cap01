@@ -71,7 +71,7 @@ void main(){
       action:'reset',token:'act_example',onCompleted:(reset)async{done=reset;})));
     await tester.enterText(find.byKey(const Key('reset-new')),'safe-new-password-123');
     await tester.enterText(find.byKey(const Key('reset-confirm')),'safe-new-password-123');
-    await tester.tap(find.text('Đặt lại mật khẩu').last);
+    await tester.tap(find.widgetWithText(FilledButton, 'Đặt lại mật khẩu'));
     await tester.pumpAndSettle();
     expect(done,true);
     api.close();
