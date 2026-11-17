@@ -1,6 +1,6 @@
 # HHK CAP-01 — ĐỐI CHIẾU TÍNH NĂNG APP CŨ VỚI FLUTTER
 
-Checkpoint 16/11/2026. App gốc READ-ONLY: https://github.com/gustavjung01/cap-01 (src/routes/appRoutes.tsx và src/shared/components/Sidebar.tsx). Roadmap chính Issue #1, danh sách port Issue #14. Đây là kiểm kê, KHÔNG phải danh sách tính năng đã hoàn thành.
+Checkpoint 17/11/2026 (bổ sung wave P1-A). App gốc READ-ONLY: https://github.com/gustavjung01/cap-01 (src/routes/appRoutes.tsx và src/shared/components/Sidebar.tsx). Roadmap chính Issue #1, danh sách port Issue #14. Đây là kiểm kê, KHÔNG phải danh sách tính năng đã hoàn thành.
 
 ## Shell đã có trong bản PWA production URL cho user test
 - Màn login/register Dopi + card trước khi vào app, session được lưu/khôi phục từ secure storage client; backend đăng nhập thật Prisma staging đã bật.
@@ -16,7 +16,9 @@ Checkpoint 16/11/2026. App gốc READ-ONLY: https://github.com/gustavjung01/cap-
 | Học tập | Ôn tập thông minh | PARTIAL: xem bài đến hạn từ StudyLedger local |
 | Học tập | Phòng trí nhớ, sơ đồ tư duy | CHƯA PORT logic |
 | Học tập | Trợ lý AI cũ | NGOÀI SCOPE Flutter, không dựng backdoor React/AI |
-| Vui chơi | Thử thách hằng ngày, mini-game, vẽ/tô màu, thi đấu | CHƯA PORT logic; drawer hiển thị “Chưa chuyển” |
+| Vui chơi | Thử thách hằng ngày | SOURCE PORT: 5 câu thật/lớp/ngày, deterministic, lưu local riêng mỗi hồ sơ, không cộng XP giả; QA máy thật còn thiếu |
+| Vui chơi | Mini-game Đúng hay Sai, Toán Siêu Tốc | SOURCE PORT: engine Flutter offline với quiz thật / phép toán theo lớp, combo và điểm cao nhất local; QA máy thật còn thiếu |
+| Vui chơi | Mini-game còn lại, vẽ/tô màu, thi đấu | CHƯA PORT; drawer chỉ mở các tính năng đã có engine |
 | Thành tích | Tiến bộ/phân tích | PARTIAL: thống kê dựa trên StudyLedger local |
 | Thành tích | Huy hiệu, thành tựu, bảng xếp hạng, cửa hàng avatar | CHƯA PORT logic |
 | Cài đặt | Hồ sơ học sinh | PARTIAL: chọn/thêm/chuyển nhiều hồ sơ local |

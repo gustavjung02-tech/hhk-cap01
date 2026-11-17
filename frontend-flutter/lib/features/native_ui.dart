@@ -197,6 +197,8 @@ class NativeHomePage extends StatelessWidget {
   final ValueChanged<Map<String, dynamic>> onLesson;
   final VoidCallback onSubjects;
   final VoidCallback onPractice;
+  final VoidCallback onDaily;
+  final VoidCallback onGames;
   final VoidCallback onProfile;
   final VoidCallback onAchievements;
   final VoidCallback onAccount;
@@ -204,6 +206,7 @@ class NativeHomePage extends StatelessWidget {
     required this.profileName, required this.progress,
     required this.onSubject, required this.onLesson,
     required this.onSubjects, required this.onPractice,
+    required this.onDaily, required this.onGames,
     required this.onProfile, required this.onAchievements,
     required this.onAccount});
 
@@ -303,20 +306,20 @@ class NativeHomePage extends StatelessWidget {
         const SizedBox(height: 7),
         Row(children: [
           Expanded(child: NativePanel(color: HhkNative.mint,
-            onTap: onPractice, child: const Column(children: [
-              Icon(Icons.extension_rounded, size: 34,
+            onTap: onDaily, child: const Column(children: [
+              Icon(Icons.calendar_month_rounded, size: 34,
                 color: Color(0xFF338679)),
               SizedBox(height: 8),
-              Text('Luyện tập vui', style: TextStyle(fontWeight: FontWeight.w800,
+              Text('Thử thách ngày', style: TextStyle(fontWeight: FontWeight.w800,
                 fontSize: 12, color: HhkNative.ink)),
             ]))),
           const SizedBox(width: 12),
           Expanded(child: NativePanel(color: HhkNative.yellow,
-            onTap: onAchievements, child: const Column(children: [
-              Icon(Icons.auto_awesome_rounded, size: 34,
+            onTap: onGames, child: const Column(children: [
+              Icon(Icons.sports_esports_rounded, size: 34,
                 color: Color(0xFFAF8129)),
               SizedBox(height: 8),
-              Text('Thành tích', style: TextStyle(fontWeight: FontWeight.w800,
+              Text('Mini-game', style: TextStyle(fontWeight: FontWeight.w800,
                 fontSize: 12, color: HhkNative.ink)),
             ]))),
         ]),

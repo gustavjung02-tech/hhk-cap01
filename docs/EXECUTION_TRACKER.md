@@ -1,3 +1,10 @@
+## Kế hoạch release tiếp theo (17/11/2026)
+- Phát hiện và sửa lỗi **không dùng lease kiểm tra quyền học trong màn hình**: bổ sung `LearningEntitlementGate`, fail-closed khi key chưa kích hoạt/lease hết hạn/lỗi đọc secure storage, chặn toàn bộ màn nội dung và kiểm tra lại khi điều hướng sâu. Trên màn khóa vẫn đổi lớp/hồ sơ và mở quản lý key.
+- P1-A source: `DailyChallenge`, `TrueFalseBlitz`, `QuickMathRush` port sang Dart/Flutter từ pinned legacy commit `7ab83326`, chỉ dùng nội dung/thuật toán offline; điểm riêng không giả làm XP của `StudyLedger`.
+- 5 câu hằng ngày chọn deterministic theo ngày local + lớp + hồ sơ, lọc `QuizEvaluator.canGrade`; kết quả idempotent một lần/ngày, lưu offline theo hồ sơ. Mini-game có điểm cao nhất và lượt chơi lưu riêng theo hồ sơ và lớp.
+- Vẫn **còn P0 QA chưa đạt**: email link live, account multi-device thực, camera QR, license hết hạn, iPhone Safari/Android real device. Không đổi trạng thái Issue #10/#15 thành PASS nếu không có chứng cứ.
+- Release gate: staging exact-SHA CI 5/5 green rồi deploy Flutter artifact `production` chính; backend/Prisma staging giữ nguyên, không thay `main`/DB sản xuất. Trạng thái bản code ở commit sẽ được ghi sau khi CI xác nhận.
+
 ## RELEASE CẬP NHẬT — QR/key/device (17/11/2026) — trạng thái mới nhất
 
 - Quyết định: QR token và quyền học không phụ thuộc quy cách/số lượng sản phẩm. Admin tạo `quantityTokens` mã theo campaign policy; mỗi token cấp tối đa một key thuộc một tài khoản. Những mô tả trước đây về quy cách đóng gói chỉ là lịch sử, không còn là yêu cầu phần mềm.

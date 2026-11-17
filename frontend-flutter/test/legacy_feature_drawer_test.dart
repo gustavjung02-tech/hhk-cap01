@@ -13,7 +13,9 @@ void main() {
       'achievements', 'avatar', 'parent', 'tts', 'audio', 'offline',
       'theme', 'data', 'profiles',
     ]));
-    expect(entries.where((e) => e.id == 'games').single.available, isFalse);
+    expect(entries.where((e) => e.id == 'games').single.available, isTrue);
+    expect(entries.where((e) => e.id == 'daily').single.available, isTrue);
+    expect(entries.where((e) => e.id == 'drawing').single.available, isFalse);
     expect(entries.where((e) => e.id == 'review').single.available, isTrue);
   });
 

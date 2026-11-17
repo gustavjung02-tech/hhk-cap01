@@ -5,8 +5,11 @@ import 'data/account_api.dart';
 import 'data/local_store.dart';
 import 'data/study_ledger.dart';
 import 'data/offline_license.dart';
+import 'data/offline_fun.dart';
 import 'features/study/lesson_page.dart';
 import 'features/native_ui.dart';
+import 'features/learning_entitlement_gate.dart';
+import 'features/offline_fun_pages.dart';
 import 'features/native_achievements.dart';
 import 'features/account/account_page.dart';
 import 'features/auth_gateway.dart';
@@ -178,6 +181,7 @@ class _HomeScreenState extends State<HomeScreen> {
           grade = next.grade;
           _refreshProgress();
           currentPack = repository.loadGrade(grade);
+          gradeEntitled = offline.gradeAllowed(grade);
         });
       }
     } catch (_) {
@@ -190,6 +194,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _refreshLicense() async {
     if (mounted) setState(() => gradeEntitled = offline.gradeAllowed(grade));
+  }
+
+  Future<bool> _requireLearningAccess() async {
+    try {
+      if (await offline.gradeAllowed(grade)) return mounted;
+    } catch (_) {
+      // Fail closed: unreadable or corrupt signed leases cannot open lessons.
+    }
+    if (!mounted) return false;
+    setState(() => gradeEntitled = Future<bool>.value(false));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text(
+        'Chưa có quyền học hợp lệ. Hãy kích hoạt key cho lớp này.')));
+    return false;
   }
 
   @override
@@ -239,7 +257,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   ? Center(child: Padding(
                       padding: const EdgeInsets.all(24),
                       child: Text(initializationError!, textAlign: TextAlign.center)))
-                  : IndexedStack(index: tab, children: pages)),
+                  : LearningEntitlementGate(
+                      entitlement: gradeEntitled,
+                      grade: grade,
+                      onGrade: _selectGrade,
+                      onActivate: _openAccount,
+                      onRefresh: _refreshLicense,
+                      onSwitchProfile: _chooseProfile,
+                      child: IndexedStack(index: tab, children: pages),
+                    )),
       // NavigationBar owns the system bottom safe area; do not wrap it again.
       bottomNavigationBar: CompactBottomNavigationBar(
         selectedIndex: tab,
@@ -270,6 +296,8 @@ class _HomeScreenState extends State<HomeScreen> {
           onAccount: _openAccount,
           onSubjects: () => setState(() => tab = 1),
           onPractice: () => setState(() => tab = 2),
+          onDaily: () => _openFunMode(FunMode.daily),
+          onGames: () => _openFunMode(null),
           onSubject: (subject) => _openSubject(snapshot.data!, subject),
           onLesson: (lesson) => _openLesson(snapshot.data!, lesson),
         ),
@@ -365,6 +393,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     ));
+    await _refreshLicense();
   }
 
   Future<void> _chooseProfile() async {
@@ -398,7 +427,33 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _openLegacyFeature(LegacyMenuItem feature) {
+
+  Future<void> _openFunMode(FunMode? mode) async {
+    if (!await _requireLearningAccess()) return;
+    final profile = activeProfile;
+    if (profile == null || !mounted) return;
+    try {
+      final pack = await currentPack;
+      if (!mounted) return;
+      await Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => mode == null
+            ? OfflineMiniGameHubPage(
+                pack: pack, profile: profile, storage: store)
+            : OfflineFunRoundPage(
+                mode: mode, pack: pack, profile: profile, storage: store),
+      ));
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Không thể mở trò chơi offline. Hãy thử lại.')));
+      }
+    }
+  }
+
+  Future<void> _openLegacyFeature(LegacyMenuItem feature) async {
+    if (!{'account', 'profiles', 'parent', 'daily', 'games'}.contains(feature.id) &&
+        !await _requireLearningAccess()) return;
+    if (!mounted) return;
     switch (feature.id) {
       case 'lessons':
       case 'curriculum':
@@ -421,6 +476,12 @@ class _HomeScreenState extends State<HomeScreen> {
             review: feature.id == 'review',
           ),
         ));
+        return;
+      case 'daily':
+        await _openFunMode(FunMode.daily);
+        return;
+      case 'games':
+        await _openFunMode(null);
         return;
       case 'parent':
         Navigator.of(context).push(MaterialPageRoute<void>(
@@ -496,6 +557,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _openPractice(GradePack pack,
       Map<String, dynamic> lesson) async {
+    if (!await _requireLearningAccess()) return;
     final profile = activeProfile;
     final id = (lesson['id'] as num?)?.toInt();
     if (profile == null || id == null) return;
@@ -514,6 +576,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _openLesson(GradePack pack,
       Map<String, dynamic> lesson) async {
+    if (!await _requireLearningAccess()) return;
     final profile = activeProfile;
     if (profile == null) return;
     await Navigator.of(context).push(MaterialPageRoute<void>(
@@ -608,7 +671,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
 
   
-  void _openSubject(GradePack pack, Map<String, dynamic> subject) {
+  Future<void> _openSubject(GradePack pack, Map<String, dynamic> subject) async {
+    if (!await _requireLearningAccess()) return;
     final profile = activeProfile;
     if (profile == null) return;
     final lessons = pack.lessonsFor(subject['code']?.toString() ?? '');

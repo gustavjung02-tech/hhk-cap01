@@ -31,8 +31,9 @@ const legacyMenuGroups = <LegacyMenuGroup>[
   ]),
   LegacyMenuGroup('Vui chơi', [
     LegacyMenuItem('daily', 'Thử thách hằng ngày',
-        Icons.calendar_month_outlined),
-    LegacyMenuItem('games', 'Mini-Game', Icons.sports_esports_outlined),
+        Icons.calendar_month_outlined, available: true),
+    LegacyMenuItem('games', 'Mini-Game', Icons.sports_esports_outlined,
+        available: true),
     LegacyMenuItem('drawing', 'Vẽ & tô màu', Icons.brush_outlined),
     LegacyMenuItem('competition', 'Thi đấu', Icons.sports_kabaddi_outlined),
   ]),
