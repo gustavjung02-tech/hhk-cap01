@@ -179,10 +179,14 @@ void main() {
     expect(find.text('Ghép Cặp'), findsOneWidget);
     expect(find.text('Xếp Chữ'), findsOneWidget);
     expect(find.text('Tốc Độ'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Điền Từ'), 170);
+    await tester.scrollUntilVisible(find.text('Điền Từ'), 170,
+      scrollable: find.byType(Scrollable).first);
     expect(find.text('Điền Từ'), findsOneWidget);
     expect(find.text('Đúng hay Sai'), findsOneWidget);
     expect(find.text('Toán Siêu Tốc'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.textContaining('Mini-game không cộng XP bài học'), 150,
+      scrollable: find.byType(Scrollable).first);
     expect(find.textContaining('Mini-game không cộng XP bài học'), findsOneWidget);
   });
 }

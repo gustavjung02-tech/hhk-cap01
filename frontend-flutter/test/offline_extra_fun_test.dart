@@ -145,9 +145,11 @@ void main() {
     await tester.enterText(find.byKey(const Key('fill-blank-answer')),'5');
     await tester.tap(find.byKey(const Key('fill-blank-submit')));
     await tester.pump();
-    await tester.scrollUntilVisible(find.text('Chính xác! 🎉'), 150);
+    await tester.scrollUntilVisible(find.text('Chính xác! 🎉'), 150,
+      scrollable: find.byType(Scrollable).first);
     expect(find.text('Chính xác! 🎉'),findsOneWidget);
-    await tester.scrollUntilVisible(find.byKey(const Key('extra-next')), 100);
+    await tester.scrollUntilVisible(find.byKey(const Key('extra-next')), 100,
+      scrollable: find.byType(Scrollable).first);
     await tester.tap(find.byKey(const Key('extra-next')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('extra-game-score')),findsOneWidget);
@@ -168,9 +170,11 @@ void main() {
     await tester.pump(const Duration(seconds:9));
     await tester.pump();
     await tester.scrollUntilVisible(
-      find.textContaining('Chưa đúng. Đáp án:'), 160);
+      find.textContaining('Chưa đúng. Đáp án:'), 160,
+      scrollable: find.byType(Scrollable).first);
     expect(find.textContaining('Chưa đúng. Đáp án:'),findsOneWidget);
-    await tester.scrollUntilVisible(find.byKey(const Key('extra-next')), 120);
+    await tester.scrollUntilVisible(find.byKey(const Key('extra-next')), 120,
+      scrollable: find.byType(Scrollable).first);
     await tester.tap(find.byKey(const Key('extra-next')));
     await tester.pumpAndSettle();
     expect(find.text('0/1 điểm'),findsOneWidget);
@@ -194,7 +198,8 @@ void main() {
     await tester.tap(find.text('❔').first);
     await tester.pump();
     await tester.scrollUntilVisible(
-      find.byKey(const Key('match-continue')), 140);
+      find.byKey(const Key('match-continue')), 140,
+      scrollable: find.byType(Scrollable).first);
     expect(find.byKey(const Key('match-continue')),findsOneWidget);
   });
 
