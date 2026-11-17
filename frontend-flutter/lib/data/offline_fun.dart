@@ -8,7 +8,11 @@ import '../features/study/quiz_evaluator.dart';
 enum FunMode {
   daily('Thử thách hằng ngày', '🌟'),
   trueFalse('Đúng hay Sai', '✅'),
-  quickMath('Toán Siêu Tốc', '🚀');
+  quickMath('Toán Siêu Tốc', '🚀'),
+  match('Ghép Cặp', '🃏'),
+  scramble('Xếp Chữ', '🔤'),
+  speed('Tốc Độ', '⚡'),
+  fillBlank('Điền Từ', '✏️');
 
   final String label;
   final String emoji;
@@ -64,6 +68,13 @@ String localStudyDate(DateTime now) {
 }
 
 class FunQuestionEngine {
+  static int stableSeed(String value) => _stableHash(value);
+
+  static List<FunQuestion> selectTypes(GradePack pack, String profileId,
+      DateTime day, Set<String> kinds, int count, String mode) =>
+      _select(_candidates(pack, kinds),
+          '$mode:${pack.grade}:$profileId:${localStudyDate(day)}', count);
+
   static bool _valid(Map<String, dynamic> q, Set<int> lessons) {
     final id = (q['id'] as num?)?.toInt();
     final lessonId = (q['lessonId'] as num?)?.toInt();

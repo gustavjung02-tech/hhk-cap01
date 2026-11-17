@@ -4,58 +4,89 @@ import '../data/catalog_repository.dart';
 import '../data/local_store.dart';
 import '../data/study_ledger.dart';
 import '../data/offline_fun.dart';
+import 'offline_extra_game_page.dart';
 import 'native_ui.dart';
 
 class OfflineMiniGameHubPage extends StatelessWidget {
   final GradePack pack;
   final StudentProfile profile;
   final LocalStore storage;
+  final Future<bool> Function() ensureAccess;
+
   const OfflineMiniGameHubPage({super.key, required this.pack,
-    required this.profile, required this.storage});
+    required this.profile, required this.storage, required this.ensureAccess});
+
+  Future<void> _launch(BuildContext context, FunMode mode) async {
+    bool allowed = false;
+    try {
+      allowed = await ensureAccess();
+    } catch (_) {
+      // A failed secure-vault verification never unlocks a nested route.
+    }
+    if (!context.mounted) return;
+    if (!allowed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cần key hợp lệ để chơi offline.')));
+      return;
+    }
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => mode == FunMode.trueFalse || mode == FunMode.quickMath
+          ? OfflineFunRoundPage(
+              mode: mode, pack: pack, profile: profile, storage: storage)
+          : OfflineExtraGamePage(
+              mode: mode, pack: pack, profile: profile, storage: storage),
+    ));
+  }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: HhkNative.bg,
-    appBar: AppBar(title: const Text('Vương quốc Mini-Game')),
-    body: ListView(padding: const EdgeInsets.fromLTRB(18, 16, 18, 26),
-      children: [
-        const NativeDopiBanner(
-          title: 'Cùng Dopi vui học! 🎮',
-          subtitle: 'Các trò chơi chạy offline, điểm lưu riêng từng bé.',
-          color: HhkNative.yellow),
-        const SizedBox(height: 22),
-        const NativeHeading('Trò chơi đã chuyển'),
-        const SizedBox(height: 9),
-        NativePanel(color: HhkNative.mint,
-          onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-            builder: (_) => OfflineFunRoundPage(
-              mode: FunMode.trueFalse, pack: pack,
-              profile: profile, storage: storage))),
-          child: const ListTile(
-            leading: Text('✅', style: TextStyle(fontSize: 35)),
-            title: Text('Đúng hay Sai', style: TextStyle(
-              fontWeight: FontWeight.w900, color: HhkNative.ink)),
-            subtitle: Text('Nhận biết đúng sai từ câu hỏi thật.'),
-            trailing: Icon(Icons.chevron_right, color: HhkNative.purple))),
-        const SizedBox(height: 12),
-        NativePanel(color: HhkNative.pink,
-          onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-            builder: (_) => OfflineFunRoundPage(
-              mode: FunMode.quickMath, pack: pack,
-              profile: profile, storage: storage))),
-          child: const ListTile(
-            leading: Text('🚀', style: TextStyle(fontSize: 35)),
-            title: Text('Toán Siêu Tốc', style: TextStyle(
-              fontWeight: FontWeight.w900, color: HhkNative.ink)),
-            subtitle: Text('Tính nhẩm theo cấp lớp, thử thách 10 câu.'),
-            trailing: Icon(Icons.chevron_right, color: HhkNative.purple))),
-        const SizedBox(height: 19),
-        const NativePanel(child: Text(
-          'Các trò chơi khác của app cũ sẽ được chuyển theo từng đợt. '
-          'Điểm mini-game không tự cộng vào XP bài học.')),
-      ],
-    ),
-  );
+  Widget build(BuildContext context) {
+    const games = [
+      (FunMode.match, 'Lật thẻ tìm cặp câu hỏi và đáp án.', HhkNative.blue),
+      (FunMode.scramble, 'Sắp xếp các chữ thành từ đúng.', HhkNative.lilac),
+      (FunMode.speed, 'Trả lời trong 8 giây mỗi câu.', HhkNative.pink),
+      (FunMode.trueFalse, 'Nhận biết đúng sai từ câu hỏi thật.', HhkNative.mint),
+      (FunMode.fillBlank, 'Nhập đáp án từ câu hỏi đã kiểm duyệt.', HhkNative.yellow),
+      (FunMode.quickMath, 'Tính nhẩm theo lớp, thử thách 10 câu.', HhkNative.pink),
+    ];
+    return Scaffold(
+      backgroundColor: HhkNative.bg,
+      appBar: AppBar(title: const Text('Vương quốc Mini-Game')),
+      body: ListView(padding: const EdgeInsets.fromLTRB(18, 16, 18, 26),
+        children: [
+          const NativeDopiBanner(
+            title: 'Cùng Dopi vui học! 🎮',
+            subtitle: 'Trò chơi offline, điểm lưu riêng từng hồ sơ.',
+            color: HhkNative.yellow),
+          const SizedBox(height: 18),
+          const NativeHeading('Chọn trò chơi'),
+          const SizedBox(height: 9),
+          for (final game in games)
+            Padding(padding: const EdgeInsets.only(bottom: 12),
+              child: NativePanel(
+                color: game.$3,
+                onTap: () => _launch(context, game.$1),
+                child: Row(children: [
+                  Text(game.$1.emoji, style: const TextStyle(fontSize: 34)),
+                  const SizedBox(width: 13),
+                  Expanded(child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(game.$1.label, style: const TextStyle(
+                        color: HhkNative.ink, fontWeight: FontWeight.w900,
+                        fontSize: 15)),
+                      const SizedBox(height: 4),
+                      Text(game.$2, style: const TextStyle(
+                        color: HhkNative.muted, fontSize: 12)),
+                    ])),
+                  const Icon(Icons.chevron_right,
+                      color: HhkNative.purple),
+                ]))),
+          const NativePanel(child: Text(
+            'Mini-game không cộng XP bài học. Trò thiếu dữ liệu '
+            'chấm điểm sẽ thông báo rõ, không tạo đáp án giả.')),
+        ]),
+    );
+  }
 }
 
 /// Port of DailyChallenge + TrueFalseBlitz + QuickMathRush from the pinned

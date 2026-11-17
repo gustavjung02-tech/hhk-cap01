@@ -440,7 +440,8 @@ class _HomeScreenState extends State<HomeScreen> {
       await Navigator.of(context).push(MaterialPageRoute<void>(
         builder: (_) => mode == null
             ? OfflineMiniGameHubPage(
-                pack: pack, profile: profile, storage: store)
+                pack: pack, profile: profile, storage: store,
+                ensureAccess: _requireLearningAccess)
             : OfflineFunRoundPage(
                 mode: mode, pack: pack, profile: profile, storage: store),
       ));

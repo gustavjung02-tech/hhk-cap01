@@ -1,3 +1,10 @@
+## P1-A2 — 4 mini-game còn thiếu (17/11/2026)
+- Theo đúng legacy pinned `gustavjung01/cap-01@7ab83326`: `MatchGamePage`, `WordScramblePage`, `SpeedQuizPage`, `FillBlankPage`. Flutter mới không phụ thuộc React/backend.
+- `FunQuestionEngine.selectTypes` dùng chung bộ `QuizEvaluator.canGrade`. Ghép Cặp chỉ nhận `single_choice` có câu/đáp án ngắn và duy nhất; Xếp Chữ dùng từ đúng một từ, có đáp án trong options, tách chữ Unicode; Tốc Độ chỉ dùng trắc nghiệm đơn có đáp án kiểm chứng và giới hạn 8 giây; Điền Từ chỉ dùng `fill_number`/trắc nghiệm có thể chấm chắc chắn, từ chối `fill_text` mơ hồ.
+- Vào `Menu 3 gạch → Mini-Game`; hub kiểm tra lại lease ký số ngay lúc mở game, kể cả khi menu đã mở từ lâu. Điểm và kỷ lục local cách ly theo hồ sơ/lớp/chế độ; không cộng XP bài học giả. Không thay backend, QR, Prisma hay `main`.
+- Flutter tests: lọc dữ liệu không hợp lệ, chống gán đáp án thiếu kiểm chứng, deterministic word/match, tương tác lật thẻ, xếp chữ, hết giờ, điền số, lưu best score và quyền học khi hết hạn. **Thiết bị vật lý iPhone/Android vẫn cần QA**, không coi CI là bằng chứng.
+- Hợp đồng release: `staging` → exact SHA CI 5/5 xanh → artifact Flutter Web kiểm tra SHA-256 → deploy **PWA production** `https://hhk-cap01-pwa.vercel.app` → smoke 6 asset → cập nhật Issue #14/#1. CI và deployment sẽ được ghi riêng sau khi có kết quả.
+
 ## Kế hoạch release tiếp theo (17/11/2026)
 - Phát hiện và sửa lỗi **không dùng lease kiểm tra quyền học trong màn hình**: bổ sung `LearningEntitlementGate`, fail-closed khi key chưa kích hoạt/lease hết hạn/lỗi đọc secure storage, chặn toàn bộ màn nội dung và kiểm tra lại khi điều hướng sâu. Trên màn khóa vẫn đổi lớp/hồ sơ và mở quản lý key.
 - P1-A source: `DailyChallenge`, `TrueFalseBlitz`, `QuickMathRush` port sang Dart/Flutter từ pinned legacy commit `7ab83326`, chỉ dùng nội dung/thuật toán offline; điểm riêng không giả làm XP của `StudyLedger`.

@@ -173,11 +173,15 @@ void main() {
       pack: pack(),
       profile: const StudentProfile(id: 'p1', name: 'A', grade: 3),
       storage: vault,
+      ensureAccess: () async => true,
     )));
     await tester.pumpAndSettle();
+    expect(find.text('Ghép Cặp'), findsOneWidget);
+    expect(find.text('Xếp Chữ'), findsOneWidget);
+    expect(find.text('Tốc Độ'), findsOneWidget);
+    expect(find.text('Điền Từ'), findsOneWidget);
     expect(find.text('Đúng hay Sai'), findsOneWidget);
     expect(find.text('Toán Siêu Tốc'), findsOneWidget);
-    expect(find.text('Các trò chơi khác của app cũ sẽ được chuyển theo từng đợt. '
-      'Điểm mini-game không tự cộng vào XP bài học.'), findsOneWidget);
+    expect(find.textContaining('Mini-game không cộng XP bài học'), findsOneWidget);
   });
 }

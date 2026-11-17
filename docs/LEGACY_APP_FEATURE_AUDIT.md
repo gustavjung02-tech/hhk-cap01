@@ -18,7 +18,8 @@ Checkpoint 17/11/2026 (bổ sung wave P1-A). App gốc READ-ONLY: https://github
 | Học tập | Trợ lý AI cũ | NGOÀI SCOPE Flutter, không dựng backdoor React/AI |
 | Vui chơi | Thử thách hằng ngày | SOURCE PORT: 5 câu thật/lớp/ngày, deterministic, lưu local riêng mỗi hồ sơ, không cộng XP giả; QA máy thật còn thiếu |
 | Vui chơi | Mini-game Đúng hay Sai, Toán Siêu Tốc | SOURCE PORT: engine Flutter offline với quiz thật / phép toán theo lớp, combo và điểm cao nhất local; QA máy thật còn thiếu |
-| Vui chơi | Mini-game còn lại, vẽ/tô màu, thi đấu | CHƯA PORT; drawer chỉ mở các tính năng đã có engine |
+| Vui chơi | Ghép Cặp, Xếp Chữ, Tốc Độ, Điền Từ | SOURCE PORT P1-A2: 4 chế độ Flutter offline riêng, chỉ dùng câu có đáp án chấm chắc chắn, điểm theo hồ sơ/lớp; CI + QA đang chạy |
+| Vui chơi | Vẽ/tô màu, thi đấu và hoạt động sáng tạo khác | CHƯA PORT; drawer không hiện nội dung giả |
 | Thành tích | Tiến bộ/phân tích | PARTIAL: thống kê dựa trên StudyLedger local |
 | Thành tích | Huy hiệu, thành tựu, bảng xếp hạng, cửa hàng avatar | CHƯA PORT logic |
 | Cài đặt | Hồ sơ học sinh | PARTIAL: chọn/thêm/chuyển nhiều hồ sơ local |
