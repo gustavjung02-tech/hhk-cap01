@@ -31,7 +31,7 @@ test('claim QR validation never permits URL/HTML/duplicate tokens',()=>{
   assert.throws(()=>checkedTokens([t1,'<script>']));
   assert.throws(()=>checkedTokens(Array(101).fill(t1)));
   assert.throws(()=>checkedBatchCode('test/evil'));
-  assert.match(csvForBatch('BATCH_01',[t1]),/^\\uFEFF?index,batch_code,qr_token/);
+  assert.ok(csvForBatch('BATCH_01',[t1]).startsWith('\uFEFFindex,batch_code,qr_token'));
 });
 test('origin protection rejects cross-site issuer requests',()=>{
   assert.equal(allowedOrigin(request('POST',{})),true);
