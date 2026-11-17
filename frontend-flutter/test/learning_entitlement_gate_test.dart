@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hhk_cap01/features/learning_entitlement_gate.dart';
@@ -41,8 +42,10 @@ void main() {
   });
 
   testWidgets('corrupt vault check fails closed', (tester) async {
-    await tester.pumpWidget(build(Future<bool>.error(StateError('corrupt')),
+    final pending = Completer<bool>();
+    await tester.pumpWidget(build(pending.future,
       onOpen: () {}, onRefresh: () {}));
+    pending.completeError(StateError('corrupt'));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('private-lesson')), findsNothing);
     expect(find.text('Không kiểm tra được quyền học'), findsOneWidget);
