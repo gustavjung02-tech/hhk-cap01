@@ -51,10 +51,12 @@ class _CreativeDrawingPageState extends State<CreativeDrawingPage> {
         loaded = true;
       });
     } catch (_) {
-      if (mounted) setState(() {
-        loaded = true;
-        error = 'Không đọc được tranh đã lưu. Tranh cũ vẫn được giữ nguyên.';
-      });
+      if (mounted) {
+        setState(() {
+          loaded = true;
+          error = 'Không đọc được tranh đã lưu. Tranh cũ vẫn được giữ nguyên.';
+        });
+      }
     }
   }
 
@@ -71,10 +73,12 @@ class _CreativeDrawingPageState extends State<CreativeDrawingPage> {
         setState(() => saving = false);
       }
     }).catchError((Object _) {
-      if (mounted) setState(() {
-        saving = false;
-        error = 'Không thể lưu tranh. Kiểm tra dung lượng máy.';
-      });
+      if (mounted) {
+        setState(() {
+          saving = false;
+          error = 'Không thể lưu tranh. Kiểm tra dung lượng máy.';
+        });
+      }
     });
   }
 

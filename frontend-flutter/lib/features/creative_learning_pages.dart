@@ -277,7 +277,9 @@ class _AvatarShopPageState extends State<AvatarShopPage> {
     try {
       final earned = await widget.ledger.totalXp(widget.profile.id);
       final data = await AvatarStore(widget.store).load(widget.profile.id);
-      if (mounted) setState(() { xp = earned; inventory = data; });
+      if (mounted) {
+        setState(() { xp = earned; inventory = data; });
+      }
     } catch (_) {
       if (mounted) {
         setState(() => error = 'Không đọc được dữ liệu avatar.');
@@ -296,7 +298,9 @@ class _AvatarShopPageState extends State<AvatarShopPage> {
       final next = inventory!.owned.containsKey(item.id)
         ? await store.equip(widget.profile.id, item.id)
         : await store.buy(widget.profile.id, item.id, earned);
-      if (mounted) setState(() { xp = earned; inventory = next; });
+      if (mounted) {
+        setState(() { xp = earned; inventory = next; });
+      }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

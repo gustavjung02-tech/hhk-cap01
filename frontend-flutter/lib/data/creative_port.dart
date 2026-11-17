@@ -73,7 +73,9 @@ class ArtStore {
     final encoded = jsonEncode(art.toJson());
     ArtDocument.parse(encoded);
     await db.update(key(profile, grade), (previous) {
-      if (previous != null) ArtDocument.parse(previous);
+      if (previous != null) {
+        ArtDocument.parse(previous);
+      }
       return encoded;
     });
   }
@@ -100,7 +102,9 @@ class ReviewDeck {
     final rows = <int, ReviewCard>{};
     for (final q in pack.questions) {
       if (q['isActive'] == 0 || q['id'] is! num ||
-          q['lessonId'] is! num || !QuizEvaluator.canGrade(q)) continue;
+          q['lessonId'] is! num || !QuizEvaluator.canGrade(q)) {
+        continue;
+      }
       final lessonId = (q['lessonId'] as num).toInt();
       if (!lessons.containsKey(lessonId)) {
         continue;
@@ -216,7 +220,9 @@ class MindMapDeck {
     }
     final summary = found.first['summarySimple']?.toString().trim() ?? '';
     final result = <LessonBranch>[];
-    if (summary.isNotEmpty) result.add(LessonBranch('Tổng quan', summary));
+    if (summary.isNotEmpty) {
+      result.add(LessonBranch('Tổng quan', summary));
+    }
     for (final c in pack.cardsFor(id)) {
       final title = c['title']?.toString().trim() ?? '';
       final content = c['content']?.toString().trim() ?? '';

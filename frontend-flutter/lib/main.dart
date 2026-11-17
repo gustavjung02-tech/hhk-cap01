@@ -510,8 +510,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   profileId: profile.id)
               : MindMapPage(pack: pack)));
         } catch (_) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Không tải được nội dung bài học.')));
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Không tải được nội dung bài học.')));
+          }
         }
         return;
       case 'avatar':
