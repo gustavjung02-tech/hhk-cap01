@@ -161,6 +161,19 @@ export function createApp(service?: LicenseService, mailer?: AccountMailer) {
     (body,identity) => service!.transferAccount(identity!.id,body)));
   app.post('/api/v1/account/claims/redeem', c => withAccount(c, true,
     (body, identity) => service!.redeem(body, identity!.id)));
+  app.get('/api/v1/admin/batches', async c => {
+    if (!service) return c.json({ok:false,code:'NOT_CONFIGURED'},503);
+    if (!service.authorized(c.req.header('authorization'))) {
+      return c.json({ok:false,code:'UNAUTHORIZED'},401);
+    }
+    try {
+      return c.json({ok:true,...await service.listBatches()},200,{
+        'Cache-Control': 'no-store'
+      });
+    } catch {
+      return c.json({ok:false,code:'SERVICE_UNAVAILABLE'},503);
+    }
+  });
   for (const [path, handler] of Object.entries(handlers)) {
     app.post(path, async c => {
       if (!service) return c.json({ok: false, code: 'NOT_CONFIGURED'}, 503);

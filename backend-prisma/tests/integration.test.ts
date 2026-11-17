@@ -32,6 +32,38 @@ if (!url) {
     });
     return {status:response.status, body:await response.json() as Record<string,any>};
   };
+  test('QR administration lists only metadata, never reusable raw tokens', async () => {
+    const code='LIST_CAMP_' + ++n;
+    const created = await json('/api/v1/admin/campaigns', {
+      campaignCode: code, active: true,
+      policy: {grades: [1,2], maxDevices: 1, validDays: 30}
+    }, true);
+    assert.equal(created.status,200);
+    const codeBatch='LIST_BATCH_' + ++n;
+    const issued=await json('/api/v1/admin/batches',{
+      campaignCode:code,batchCode:codeBatch,quantityTokens:2
+    },true);
+    assert.equal(issued.status,200);
+    const unauth=await app.request('/api/v1/admin/batches');
+    assert.equal(unauth.status,401);
+    const response=await app.request('/api/v1/admin/batches',{
+      headers:{authorization:'Bearer ' + secret}
+    });
+    assert.equal(response.status,200);
+    assert.equal(response.headers.get('cache-control'),'no-store');
+    const body=await response.json() as {batches:Array<Record<string,any>>};
+    const listed=body.batches.find(b=>b.batchCode===codeBatch);
+    assert.ok(listed);
+    assert.equal(listed.quantityTokens,2);
+    assert.equal(listed.unclaimed,2);
+    assert.equal(listed.redeemed,0);
+    assert.equal(listed.campaignCode,code);
+    const serialized=JSON.stringify(listed);
+    for (const token of issued.body.qrTokens as string[]) {
+      assert.equal(serialized.includes(token),false);
+    }
+  });
+
   const campaign = async (maxDevices=1) => {
     const code = 'CAMP_' + ++n;
     const result = await json('/api/v1/admin/campaigns', {

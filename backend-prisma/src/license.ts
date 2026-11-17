@@ -192,6 +192,39 @@ export class LicenseService {
     return { id, campaignCode: p.campaignCode, active: true };
   }
 
+  /** Metadata only: raw claim tokens are hashed and cannot be retrieved later. */
+  async listBatches() {
+    const result = await this.config.pool.query<{
+      id: string;
+      batch_code: string;
+      token_count: number;
+      created_at: Date;
+      campaign_code: string | null;
+      redeemed_count: number;
+      disabled_count: number;
+    }>(`
+      SELECT b.id, b.batch_code, b.token_count, b.created_at,
+             MAX(c.campaign_code) AS campaign_code,
+             COUNT(t.id) FILTER (WHERE t.status='redeemed')::integer AS redeemed_count,
+             COUNT(t.id) FILTER (WHERE t.status='disabled')::integer AS disabled_count
+      FROM claim_batches b
+      LEFT JOIN claim_tokens t ON t.batch_id=b.id
+      LEFT JOIN reward_campaigns c ON c.id=t.campaign_id
+      GROUP BY b.id, b.batch_code, b.token_count, b.created_at
+      ORDER BY b.created_at DESC, b.id DESC
+      LIMIT 100
+    `);
+    return { batches: result.rows.map(row => ({
+      id: row.id, batchCode: row.batch_code,
+      campaignCode: row.campaign_code,
+      quantityTokens: row.token_count,
+      redeemed: row.redeemed_count,
+      disabled: row.disabled_count,
+      unclaimed: row.token_count - row.redeemed_count - row.disabled_count,
+      createdAt: row.created_at.toISOString()
+    })) };
+  }
+
   async createBatch(value: unknown) {
     const p = value as Record<string, unknown> | null;
     if (!p || typeof p.batchCode !== 'string' || !codePattern.test(p.batchCode) ||
