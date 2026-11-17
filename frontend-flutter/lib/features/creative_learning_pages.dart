@@ -35,7 +35,9 @@ class _MemoryRoomPageState extends State<MemoryRoomPage> {
       final cards = ReviewDeck.fromPack(widget.pack)
           .where((c) => (data[c.id]?.atMillis ?? 0) <= now)
           .take(20).toList();
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() {
         reviews = data;
         due = cards;
@@ -43,29 +45,39 @@ class _MemoryRoomPageState extends State<MemoryRoomPage> {
         revealed = false;
       });
     } catch (_) {
-      if (mounted) setState(() => error = 'Không đọc được lịch ôn đã lưu trên máy.');
+      if (mounted) {
+        setState(() => error = 'Không đọc được lịch ôn đã lưu trên máy.');
+      }
     }
   }
 
   Future<void> rate(String difficulty) async {
-    if (busy || due == null || index >= due!.length) return;
+    if (busy || due == null || index >= due!.length) {
+      return;
+    }
     setState(() => busy = true);
     try {
       final current = due![index];
       final record = await MemoryRoomStore(widget.store)
           .rate(widget.profileId, widget.pack.grade,
             current.id, difficulty, DateTime.now());
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() {
         reviews[current.id] = record;
         index++;
         revealed = false;
       });
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Không lưu được lịch ôn. Vui lòng thử lại.')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Không lưu được lịch ôn. Vui lòng thử lại.')));
+      }
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (mounted) {
+        setState(() => busy = false);
+      }
     }
   }
 
@@ -87,15 +99,13 @@ class _MemoryRoomPageState extends State<MemoryRoomPage> {
                 const SizedBox(height: 8),
                 const Text('Thẻ sẽ xuất hiện lại theo lịch ghi nhớ đã lưu.'),
                 const SizedBox(height: 14),
-                Text('Tổng số thẻ đã lên lịch: ' + reviews.length.toString()),
+                Text('Tổng số thẻ đã lên lịch: ${reviews.length}'),
                 const SizedBox(height: 16),
                 OutlinedButton(onPressed: reload,
                   child: const Text('Kiểm tra lại')),
               ])))
           : ListView(padding: const EdgeInsets.all(18), children: [
-              Text('Thẻ ' + (index + 1).toString() + '/'
-                + cards.length.toString() + ' · Lớp '
-                + widget.pack.grade.toString(),
+              Text('Thẻ ${index + 1}/${cards.length} · Lớp ${widget.pack.grade}',
                 style: const TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               Card(child: InkWell(onTap: () => setState(() => revealed = !revealed),
@@ -269,12 +279,16 @@ class _AvatarShopPageState extends State<AvatarShopPage> {
       final data = await AvatarStore(widget.store).load(widget.profile.id);
       if (mounted) setState(() { xp = earned; inventory = data; });
     } catch (_) {
-      if (mounted) setState(() => error = 'Không đọc được dữ liệu avatar.');
+      if (mounted) {
+        setState(() => error = 'Không đọc được dữ liệu avatar.');
+      }
     }
   }
 
   Future<void> choose(AvatarOption item) async {
-    if (busy || inventory == null) return;
+    if (busy || inventory == null) {
+      return;
+    }
     setState(() => busy = true);
     try {
       final earned = await widget.ledger.totalXp(widget.profile.id);
@@ -284,10 +298,14 @@ class _AvatarShopPageState extends State<AvatarShopPage> {
         : await store.buy(widget.profile.id, item.id, earned);
       if (mounted) setState(() { xp = earned; inventory = next; });
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Chưa đủ XP, cấp độ hoặc không lưu được.')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Chưa đủ XP, cấp độ hoặc không lưu được.')));
+      }
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (mounted) {
+        setState(() => busy = false);
+      }
     }
   }
 
@@ -307,9 +325,8 @@ class _AvatarShopPageState extends State<AvatarShopPage> {
             style: const TextStyle(fontSize: 22,
               fontWeight: FontWeight.bold))),
           const SizedBox(height: 8),
-          Center(child: Text('XP đạt: ' + xp.toString() + ' · Cấp '
-            + level.toString() + ' · Còn '
-            + math.max(0, xp - state.spent).toString() + ' XP mở khóa',
+          Center(child: Text('XP đạt: $xp · Cấp $level · Còn '
+            '${math.max(0, xp - state.spent)} XP mở khóa',
             textAlign: TextAlign.center)),
           const SizedBox(height: 10),
           const Text('Mở khóa bằng XP đã kiếm được. '
@@ -322,7 +339,7 @@ class _AvatarShopPageState extends State<AvatarShopPage> {
               leading: Text(item.icon, style: const TextStyle(fontSize: 32)),
               title: Text(item.name),
               subtitle: Text(item.cost == 0 ? 'Miễn phí'
-                : item.cost.toString() + ' XP · Cấp ' + item.level.toString()),
+                : '${item.cost} XP · Cấp ${item.level}'),
               trailing: state.equipped == item.id
                 ? const Icon(Icons.check_circle, color: Colors.green)
                 : Icon(state.owned.containsKey(item.id)

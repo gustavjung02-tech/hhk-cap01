@@ -42,7 +42,9 @@ class _CreativeDrawingPageState extends State<CreativeDrawingPage> {
   Future<void> restore() async {
     try {
       final data = await ArtStore(widget.store).load(widget.profileId, widget.grade);
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() {
         template = data.template;
         strokes.addAll(data.strokes);
@@ -57,13 +59,17 @@ class _CreativeDrawingPageState extends State<CreativeDrawingPage> {
   }
 
   void save() {
-    if (error != null) return;
+    if (error != null) {
+      return;
+    }
     final doc = ArtDocument(template: template,
       strokes: List<ArtStroke>.from(strokes));
     setState(() => saving = true);
     pending = pending.then((_) => ArtStore(widget.store)
         .save(widget.profileId, widget.grade, doc)).then((_) {
-      if (mounted) setState(() => saving = false);
+      if (mounted) {
+        setState(() => saving = false);
+      }
     }).catchError((Object _) {
       if (mounted) setState(() {
         saving = false;
@@ -77,7 +83,9 @@ class _CreativeDrawingPageState extends State<CreativeDrawingPage> {
     (p.dy / s.height).clamp(0.0, 1.0));
 
   void begin(Offset p, Size s) {
-    if (!loaded || error != null || strokes.length >= 150) return;
+    if (!loaded || error != null || strokes.length >= 150) {
+      return;
+    }
     setState(() {
       current.clear();
       current.add(point(p, s));
@@ -85,12 +93,16 @@ class _CreativeDrawingPageState extends State<CreativeDrawingPage> {
   }
 
   void move(Offset p, Size s) {
-    if (current.isEmpty || current.length >= 1200) return;
+    if (current.isEmpty || current.length >= 1200) {
+      return;
+    }
     setState(() => current.add(point(p, s)));
   }
 
   void finish() {
-    if (current.isEmpty) return;
+    if (current.isEmpty) {
+      return;
+    }
     setState(() {
       strokes.add(ArtStroke(color, brush, List<ArtPoint>.from(current)));
       current.clear();
@@ -99,7 +111,9 @@ class _CreativeDrawingPageState extends State<CreativeDrawingPage> {
   }
 
   Future<void> changeTemplate(int next) async {
-    if (next == template) return;
+    if (next == template) {
+      return;
+    }
     if (strokes.isNotEmpty) {
       final approved = await showDialog<bool>(context: context,
         builder: (ctx) => AlertDialog(
@@ -112,7 +126,9 @@ class _CreativeDrawingPageState extends State<CreativeDrawingPage> {
               child: const Text('Đổi mẫu')),
           ],
         ));
-      if (approved != true || !mounted) return;
+      if (approved != true || !mounted) {
+        return;
+      }
     }
     setState(() { template = next; strokes.clear(); });
     save();
@@ -182,7 +198,7 @@ class _CreativeDrawingPageState extends State<CreativeDrawingPage> {
             ),
         ]),
         const SizedBox(height: 16),
-        Text('Độ dày nét: ' + brush.round().toString()),
+        Text('Độ dày nét: ${brush.round()}'),
         Slider(value: brush, min: 2, max: 20, divisions: 9,
           onChanged: (next) => setState(() => brush = next)),
         const Text('Chọn màu trắng để tẩy các nét đã vẽ.',
@@ -243,7 +259,9 @@ class ArtPainter extends CustomPainter {
       canvas.drawLine(Offset(x*.5,y*.54), Offset(x*.5,y*.90), line);
     }
     void stroke(int color, double w, List<ArtPoint> points) {
-      if (points.isEmpty) return;
+      if (points.isEmpty) {
+        return;
+      }
       final ink = Paint()..color = Color(color)..strokeWidth = w
         ..strokeCap = StrokeCap.round..strokeJoin = StrokeJoin.round
         ..style = PaintingStyle.stroke;

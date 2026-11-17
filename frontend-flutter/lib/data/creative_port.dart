@@ -54,7 +54,9 @@ class ArtDocument {
       throw const FormatException('Unsupported art document');
     }
     final strokes = (m['strokes'] as List).map(ArtStroke.parse).toList();
-    if (strokes.length > 150) throw const FormatException('Art too large');
+    if (strokes.length > 150) {
+      throw const FormatException('Art too large');
+    }
     return ArtDocument(template: m['template'] as int, strokes: strokes);
   }
 }
@@ -100,23 +102,33 @@ class ReviewDeck {
       if (q['isActive'] == 0 || q['id'] is! num ||
           q['lessonId'] is! num || !QuizEvaluator.canGrade(q)) continue;
       final lessonId = (q['lessonId'] as num).toInt();
-      if (!lessons.containsKey(lessonId)) continue;
+      if (!lessons.containsKey(lessonId)) {
+        continue;
+      }
       final type = q['questionType']?.toString();
-      if (!{'single_choice', 'true_false', 'fill_number'}.contains(type)) continue;
+      if (!{'single_choice', 'true_false', 'fill_number'}.contains(type)) {
+        continue;
+      }
       final prompt = q['questionText']?.toString().trim() ?? '';
-      if (prompt.isEmpty) continue;
+      if (prompt.isEmpty) {
+        continue;
+      }
       String answer = '';
       if (type == 'single_choice') {
         final correct = QuizEvaluator.options(q)
             .where((option) => QuizEvaluator.correct(q, option)).toList();
-        if (correct.length != 1) continue;
+        if (correct.length != 1) {
+          continue;
+        }
         answer = correct.single;
       } else if (type == 'true_false') {
         answer = QuizEvaluator.correct(q, 'Đúng') ? 'Đúng' : 'Sai';
       } else {
         answer = q['correctAnswer']?.toString().trim() ?? '';
       }
-      if (answer.isEmpty) continue;
+      if (answer.isEmpty) {
+        continue;
+      }
       final id = (q['id'] as num).toInt();
       rows.putIfAbsent(id, () => ReviewCard(id, prompt, answer, lessons[lessonId]!));
     }
@@ -124,9 +136,15 @@ class ReviewDeck {
   }
 
   static int nextIndex(int previous, String rating) {
-    if (rating == 'hard') return 0;
-    if (rating == 'medium') return min(previous + 1, 6).clamp(0, 6);
-    if (rating == 'easy') return min(previous + 2, 6).clamp(0, 6);
+    if (rating == 'hard') {
+      return 0;
+    }
+    if (rating == 'medium') {
+      return min(previous + 1, 6).clamp(0, 6);
+    }
+    if (rating == 'easy') {
+      return min(previous + 2, 6).clamp(0, 6);
+    }
     throw ArgumentError.value(rating, 'rating');
   }
 }
@@ -153,7 +171,9 @@ class MemoryRoomStore {
   MemoryRoomStore(this.db);
   String _key(String profile, int grade) => 'memory:v1:$profile:$grade';
   Map<int, ReviewDue> _decode(String? raw) {
-    if (raw == null) return {};
+    if (raw == null) {
+      return {};
+    }
     final m = Map<String, dynamic>.from(jsonDecode(raw) as Map);
     if (m['version'] != 1 || m['reviews'] is! Map) {
       throw const FormatException('Invalid memory schema');
@@ -166,7 +186,9 @@ class MemoryRoomStore {
 
   Future<ReviewDue> rate(String profile, int grade, int id,
       String rating, DateTime now) async {
-    if (id <= 0 || grade < 1 || grade > 5) throw ArgumentError('Invalid review');
+    if (id <= 0 || grade < 1 || grade > 5) {
+      throw ArgumentError('Invalid review');
+    }
     late ReviewDue updated;
     await db.update(_key(profile, grade), (raw) {
       final records = _decode(raw);
@@ -189,7 +211,9 @@ class LessonBranch {
 class MindMapDeck {
   static List<LessonBranch> fromLesson(GradePack pack, int id) {
     final found = pack.lessons.where((l) => l['id'] == id && l['isActive'] != 0);
-    if (found.isEmpty) return [];
+    if (found.isEmpty) {
+      return [];
+    }
     final summary = found.first['summarySimple']?.toString().trim() ?? '';
     final result = <LessonBranch>[];
     if (summary.isNotEmpty) result.add(LessonBranch('Tổng quan', summary));
@@ -262,7 +286,9 @@ class AvatarStore {
   }
   Future<AvatarInventory> buy(String profile, String id, int earnedXp) async {
     final options = avatarOptions.where((a) => a.id == id);
-    if (options.isEmpty) throw ArgumentError.value(id, 'id');
+    if (options.isEmpty) {
+      throw ArgumentError.value(id, 'id');
+    }
     final option = options.first;
     late AvatarInventory result;
     await db.update(_key(profile), (raw) {
@@ -284,7 +310,9 @@ class AvatarStore {
     late AvatarInventory result;
     await db.update(_key(profile), (raw) {
       final old = raw == null ? AvatarInventory.initial() : AvatarInventory.parse(raw);
-      if (!old.owned.containsKey(id)) throw StateError('Avatar not owned');
+      if (!old.owned.containsKey(id)) {
+        throw StateError('Avatar not owned');
+      }
       result = AvatarInventory(old.owned, id);
       return jsonEncode(result.toJson());
     });
