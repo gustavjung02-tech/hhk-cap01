@@ -121,16 +121,20 @@ class _OfflineFunRoundPageState extends State<OfflineFunRoundPage> {
         setState(() => loading = false);
       }
     } catch (_) {
-      if (mounted) setState(() {
-        loading = false;
-        error = 'Chưa đọc được kết quả đã lưu trên máy. Hãy thử lại.';
-      });
+      if (mounted) {
+        setState(() {
+          loading = false;
+          error = 'Chưa đọc được kết quả đã lưu trên máy. Hãy thử lại.';
+        });
+      }
     }
   }
 
   void _answer(String value) {
     if (loading || saving || finished || lastCorrect != null ||
-        current >= questions.length) return;
+        current >= questions.length) {
+      return;
+    }
     if (value.trim().isEmpty) {
       return;
     }
