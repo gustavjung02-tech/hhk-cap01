@@ -135,6 +135,8 @@ class _OfflineFunRoundPageState extends State<OfflineFunRoundPage> {
           widget.pack, widget.profile.id, now),
       FunMode.quickMath => FunQuestionEngine.quickMath(
           widget.profile.grade, widget.profile.id, now),
+      FunMode.match || FunMode.scramble || FunMode.speed || FunMode.fillBlank =>
+          throw ArgumentError('Use OfflineExtraGamePage for this mode'),
     };
     _load();
   }

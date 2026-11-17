@@ -230,7 +230,9 @@ class _OfflineExtraGamePageState extends State<OfflineExtraGamePage>
 
   void _submitScramble() {
     if (!isScramble || pickedLetters.length !=
-        puzzles[current].tiles.length) return;
+        puzzles[current].tiles.length) {
+      return;
+    }
     _answer(pickedLetters.map((i) =>
         puzzles[current].tiles[i]).join());
   }
