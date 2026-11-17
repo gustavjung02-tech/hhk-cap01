@@ -143,6 +143,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('2+3=?'),findsOneWidget);
     await tester.enterText(find.byKey(const Key('fill-blank-answer')),'5');
+    await tester.pump();
+    expect(tester.widget<FilledButton>(find.byKey(
+      const Key('fill-blank-submit'))).onPressed, isNotNull);
     await tester.tap(find.byKey(const Key('fill-blank-submit')));
     await tester.pump();
     await tester.scrollUntilVisible(find.text('Chính xác! 🎉'), 150,
