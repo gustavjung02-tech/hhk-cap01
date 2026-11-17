@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="referrer" content="no-referrer"><title>HHK • Quản trị QR</title>
+<link rel="icon" href="data:,"><link rel="stylesheet" href="/styles.css">
+<script type="module" src="/app.js"></script>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="identity"><div class="mark">HHK</div><div><strong>Học Hứng Khởi</strong><small>Trung tâm quản trị</small></div></div>
+    <div class="side-caption">KHÔNG GIAN LÀM VIỆC</div>
+    <nav aria-label="Điều hướng">
+      <a class="selected" href="#security">◈ &nbsp; Phát hành QR</a>
+      <a href="#history">▤ &nbsp; Các đợt đã cấp</a>
+      <a href="https://hhk-cap01-pwa.vercel.app" rel="noopener noreferrer" target="_blank">↗ &nbsp; Mở app học</a>
+    </nav>
+    <div class="side-footer"><span class="dot"></span> Backend staging<small>Không thay đổi dữ liệu production</small></div>
+  </aside>
+  <div class="main">
+    <header class="topbar"><span>Vận hành <b>›</b> Quyền học <b>›</b> QR</span><div><span class="environment">STAGING</span><span class="profile">QT</span></div></header>
+    <main class="content">
+      <div class="heading"><div><span class="eyebrow">QUẢN LÝ KÍCH HOẠT</span><h1>Phát hành mã QR</h1>
+        <p>Tạo mã kích hoạt, tải QR để quét thử và theo dõi lượt sử dụng — tất cả trong một nơi.</p></div><div class="heading-art" aria-hidden="true">▦</div></div>
+      <div class="notice"><strong>Quy trình:</strong> Tạo chương trình → Phát hành đợt mã → Tải QR → Dùng app HHK nhận mã và kích hoạt. Mỗi QR chỉ nhận quyền một lần.</div>
+      <section id="security" class="card" aria-labelledby="security-title">
+        <div class="card-title"><span class="number">01</span><div><h2 id="security-title">Xác thực quản trị</h2><p>Nhập khóa quản trị của backend staging. Khóa không lưu trong trình duyệt.</p></div></div>
+        <div class="auth-row"><label class="field grow" for="admin-key"><span>ADMIN_API_KEY</span>
+          <input id="admin-key" type="password" placeholder="Dán khóa quản trị" autocomplete="off" spellcheck="false"></label>
+          <button class="btn secondary" type="button" id="verify-btn">Kiểm tra kết nối</button>
+          <button class="btn ghost" type="button" id="clear-key-btn">Xóa khóa</button></div>
+        <div class="helper">Khóa chỉ chuyển trực tiếp tới backend qua API cùng domain của trang quản trị; không đưa vào Git, localStorage hoặc IndexedDB.</div>
+      </section>
+      <div class="two-col">
+        <section class="card" aria-labelledby="campaign-title">
+          <div class="card-title"><span class="number">02</span><div><h2 id="campaign-title">Chương trình cấp quyền</h2><p>Chọn lớp, hiệu lực và thiết bị.</p></div></div>
+          <form id="campaign-form">
+            <label class="field" for="campaign-code"><span>Mã chương trình</span><input id="campaign-code" maxlength="40" required pattern="[A-Z0-9][A-Z0-9_-]{2,39}"></label>
+            <div class="field"><span>Lớp được kích hoạt</span><div class="grades" role="group" aria-label="Lớp">
+              <label><input type="checkbox" name="grade" value="1" checked> Lớp 1</label>
+              <label><input type="checkbox" name="grade" value="2" checked> Lớp 2</label>
+              <label><input type="checkbox" name="grade" value="3" checked> Lớp 3</label>
+              <label><input type="checkbox" name="grade" value="4" checked> Lớp 4</label>
+              <label><input type="checkbox" name="grade" value="5" checked> Lớp 5</label></div></div>
+            <div class="form-pair">
+              <label class="field" for="valid-days"><span>Hiệu lực (ngày)</span><input id="valid-days" type="number" min="1" max="3650" value="30" required></label>
+              <label class="field" for="max-devices"><span>Thiết bị / key</span><input id="max-devices" type="number" min="1" max="10" value="1" required></label>
+            </div>
+            <button type="submit" class="btn primary full" id="campaign-btn">Tạo chương trình</button>
+          </form>
+          <p class="helper">Quyền được áp dụng khi mã QR đổi thành key học tập.</p>
+        </section>
+        <section class="card" aria-labelledby="batch-title">
+          <div class="card-title"><span class="number">03</span><div><h2 id="batch-title">Phát hành đợt QR</h2><p>Tạo mã mới cho một chương trình có sẵn.</p></div></div>
+          <form id="batch-form">
+            <label class="field" for="batch-campaign"><span>Chương trình áp dụng</span><input id="batch-campaign" maxlength="40" required pattern="[A-Z0-9][A-Z0-9_-]{2,39}"></label>
+            <label class="field" for="batch-code"><span>Mã đợt phát hành</span><input id="batch-code" maxlength="40" required pattern="[A-Z0-9][A-Z0-9_-]{2,39}"></label>
+            <label class="field" for="token-count"><span>Số mã cần tạo</span><input id="token-count" type="number" min="1" max="100" value="10" required><small>Giới hạn giao diện: 1–100 mã mỗi đợt.</small></label>
+            <div class="warning">Mã gốc chỉ xuất hiện một lần. Tải ZIP hoặc CSV ngay sau khi phát hành; máy chủ không thể lấy lại chúng.</div>
+            <button type="submit" class="btn primary full" id="batch-btn">Phát hành mã QR</button>
+          </form>
+        </section>
+      </div>
+      <div id="status" class="status" role="status" aria-live="polite"></div>
+      <section class="card results" id="results" hidden aria-labelledby="result-title">
+        <div class="result-head"><div><span class="eyebrow">MÃ VỪA PHÁT HÀNH</span><h2 id="result-title">QR sẵn sàng sử dụng</h2><p id="result-description"></p></div><span class="ready">● ĐÃ TẠO</span></div>
+        <div class="warning">Hãy tải bộ mã về ngay. Khi rời trang, mã gốc không thể phục hồi từ backend.</div>
+        <div class="toolbar">
+          <button type="button" class="btn primary" id="download-zip">Tải ZIP ảnh QR</button>
+          <button type="button" class="btn secondary" id="download-csv">Tải CSV</button>
+          <button type="button" class="btn secondary" id="print-btn">In QR</button>
+          <button type="button" class="btn ghost" id="discard-btn">Xóa khỏi màn hình</button>
+        </div>
+        <div id="qr-status" role="status" aria-live="polite"></div>
+        <div class="qr-grid" id="qr-grid"></div>
+      </section>
+      <section id="history" class="card" aria-labelledby="history-title">
+        <div class="result-head"><div><h2 id="history-title">Các đợt đã cấp</h2><p>Chỉ xem thống kê; không có khả năng xem lại token gốc.</p></div>
+          <button type="button" class="btn secondary" id="refresh-btn">Làm mới</button></div>
+        <div class="table-wrap"><table><thead><tr><th>Mã đợt</th><th>Chương trình</th><th>Ngày tạo</th><th>Tổng mã</th><th>Đã dùng</th><th>Chưa dùng</th></tr></thead>
+          <tbody id="history-body"><tr><td colspan="6" class="empty">Nhập khóa quản trị và bấm “Làm mới” để xem thống kê.</td></tr></tbody></table></div>
+      </section>
+      <footer>HHK CAP-01 · Quản trị QR · Staging data · Không kết nối Git / không auto deploy</footer>
+    </main>
+  </div>
+</div>
+</body></html>
