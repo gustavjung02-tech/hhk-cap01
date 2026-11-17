@@ -117,7 +117,9 @@ class _OfflineFunRoundPageState extends State<OfflineFunRoundPage> {
         bestScore = await results.bestGameScore(
           widget.profile.id, widget.profile.grade, widget.mode);
       }
-      if (mounted) setState(() => loading = false);
+      if (mounted) {
+        setState(() => loading = false);
+      }
     } catch (_) {
       if (mounted) setState(() {
         loading = false;
@@ -129,14 +131,18 @@ class _OfflineFunRoundPageState extends State<OfflineFunRoundPage> {
   void _answer(String value) {
     if (loading || saving || finished || lastCorrect != null ||
         current >= questions.length) return;
-    if (value.trim().isEmpty) return;
+    if (value.trim().isEmpty) {
+      return;
+    }
     final passed = questions[current].accepts(value);
     setState(() {
       lastCorrect = passed;
       if (passed) {
         correct++;
         combo++;
-        if (combo > bestCombo) bestCombo = combo;
+        if (combo > bestCombo) {
+          bestCombo = combo;
+        }
       } else {
         combo = 0;
       }
@@ -144,7 +150,9 @@ class _OfflineFunRoundPageState extends State<OfflineFunRoundPage> {
   }
 
   Future<void> _next() async {
-    if (lastCorrect == null || saving || finished) return;
+    if (lastCorrect == null || saving || finished) {
+      return;
+    }
     if (current + 1 < questions.length) {
       setState(() {
         current++;
@@ -157,7 +165,9 @@ class _OfflineFunRoundPageState extends State<OfflineFunRoundPage> {
   }
 
   Future<void> _finish() async {
-    if (saving || (finished && error == null)) return;
+    if (saving || (finished && error == null)) {
+      return;
+    }
     setState(() { saving = true; error = null; });
     try {
       if (widget.mode == FunMode.daily) {
@@ -169,13 +179,19 @@ class _OfflineFunRoundPageState extends State<OfflineFunRoundPage> {
         bestScore = await results.saveGame(
           widget.profile.id, widget.profile.grade, widget.mode, correct);
       }
-      if (mounted) setState(() => finished = true);
+      if (mounted) {
+        setState(() => finished = true);
+      }
     } catch (_) {
-      if (mounted) setState(() => error =
-        'Không lưu được kết quả offline. Hãy thử lưu lại, '
-        'đừng đóng màn hình lúc này.');
+      if (mounted) {
+        setState(() => error =
+          'Không lưu được kết quả offline. Hãy thử lưu lại, '
+          'đừng đóng màn hình lúc này.');
+      }
     } finally {
-      if (mounted) setState(() => saving = false);
+      if (mounted) {
+        setState(() => saving = false);
+      }
     }
   }
 
@@ -239,9 +255,11 @@ class _OfflineFunRoundPageState extends State<OfflineFunRoundPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (loading) return Scaffold(
-      appBar: AppBar(title: Text(widget.mode.label)),
-      body: const Center(child: CircularProgressIndicator()));
+    if (loading) {
+      return Scaffold(
+        appBar: AppBar(title: Text(widget.mode.label)),
+        body: const Center(child: CircularProgressIndicator()));
+    }
     if (dailySaved != null) {
       return Scaffold(backgroundColor: HhkNative.bg,
         appBar: AppBar(title: Text(widget.mode.label)),

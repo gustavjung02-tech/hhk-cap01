@@ -197,8 +197,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<bool> _requireLearningAccess() async {
+    final checkedGrade = grade;
     try {
-      if (await offline.gradeAllowed(grade)) return mounted;
+      final allowed = await offline.gradeAllowed(checkedGrade);
+      if (allowed && mounted && grade == checkedGrade) return true;
     } catch (_) {
       // Fail closed: unreadable or corrupt signed leases cannot open lessons.
     }
@@ -452,7 +454,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _openLegacyFeature(LegacyMenuItem feature) async {
     if (!{'account', 'profiles', 'parent', 'daily', 'games'}.contains(feature.id) &&
-        !await _requireLearningAccess()) return;
+        !await _requireLearningAccess()) {
+      return;
+    }
     if (!mounted) return;
     switch (feature.id) {
       case 'lessons':
@@ -558,6 +562,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _openPractice(GradePack pack,
       Map<String, dynamic> lesson) async {
     if (!await _requireLearningAccess()) return;
+    if (!mounted) return;
     final profile = activeProfile;
     final id = (lesson['id'] as num?)?.toInt();
     if (profile == null || id == null) return;
@@ -577,6 +582,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _openLesson(GradePack pack,
       Map<String, dynamic> lesson) async {
     if (!await _requireLearningAccess()) return;
+    if (!mounted) return;
     final profile = activeProfile;
     if (profile == null) return;
     await Navigator.of(context).push(MaterialPageRoute<void>(
@@ -673,6 +679,7 @@ class _HomeScreenState extends State<HomeScreen> {
   
   Future<void> _openSubject(GradePack pack, Map<String, dynamic> subject) async {
     if (!await _requireLearningAccess()) return;
+    if (!mounted) return;
     final profile = activeProfile;
     if (profile == null) return;
     final lessons = pack.lessonsFor(subject['code']?.toString() ?? '');
