@@ -316,6 +316,7 @@ class _OfflineExtraGamePageState extends State<OfflineExtraGamePage>
   }
 
   Widget _finalResult() => ListView(
+    key: const ValueKey('extra-game-final-result'),
     padding: const EdgeInsets.fromLTRB(18, 25, 18, 30),
     children: [
       NativePanel(color: HhkNative.lilac, child: Column(children: [
@@ -347,6 +348,7 @@ class _OfflineExtraGamePageState extends State<OfflineExtraGamePage>
   );
 
   Widget _matchView() => ListView(
+    key: const ValueKey('extra-game-match'),
     padding: const EdgeInsets.fromLTRB(18, 12, 18, 30),
     children: [
       NativeDopiBanner(title: '🃏 Ghép Cặp',
@@ -408,7 +410,9 @@ class _OfflineExtraGamePageState extends State<OfflineExtraGamePage>
   Widget _answerView() {
     final q = isScramble ? null : questions[current];
     final word = isScramble ? puzzles[current] : null;
-    return ListView(padding: const EdgeInsets.fromLTRB(18, 12, 18, 30),
+    return ListView(
+      key: const ValueKey('extra-game-question'),
+      padding: const EdgeInsets.fromLTRB(18, 12, 18, 30),
       children: [
         NativeDopiBanner(
           title: '${widget.mode.emoji} ${widget.mode.label}',

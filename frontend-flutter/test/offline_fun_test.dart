@@ -179,6 +179,7 @@ void main() {
     expect(find.text('Ghép Cặp'), findsOneWidget);
     expect(find.text('Xếp Chữ'), findsOneWidget);
     expect(find.text('Tốc Độ'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Điền Từ'), 170);
     expect(find.text('Điền Từ'), findsOneWidget);
     expect(find.text('Đúng hay Sai'), findsOneWidget);
     expect(find.text('Toán Siêu Tốc'), findsOneWidget);

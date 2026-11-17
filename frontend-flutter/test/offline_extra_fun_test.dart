@@ -145,7 +145,9 @@ void main() {
     await tester.enterText(find.byKey(const Key('fill-blank-answer')),'5');
     await tester.tap(find.byKey(const Key('fill-blank-submit')));
     await tester.pump();
+    await tester.scrollUntilVisible(find.text('Chính xác! 🎉'), 150);
     expect(find.text('Chính xác! 🎉'),findsOneWidget);
+    await tester.scrollUntilVisible(find.byKey(const Key('extra-next')), 100);
     await tester.tap(find.byKey(const Key('extra-next')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('extra-game-score')),findsOneWidget);
@@ -165,7 +167,10 @@ void main() {
     expect(find.text('⏱ Còn 8 giây'),findsOneWidget);
     await tester.pump(const Duration(seconds:9));
     await tester.pump();
+    await tester.scrollUntilVisible(
+      find.textContaining('Chưa đúng. Đáp án:'), 160);
     expect(find.textContaining('Chưa đúng. Đáp án:'),findsOneWidget);
+    await tester.scrollUntilVisible(find.byKey(const Key('extra-next')), 120);
     await tester.tap(find.byKey(const Key('extra-next')));
     await tester.pumpAndSettle();
     expect(find.text('0/1 điểm'),findsOneWidget);
@@ -188,6 +193,8 @@ void main() {
     expect(find.text('❔'),findsNWidgets(5));
     await tester.tap(find.text('❔').first);
     await tester.pump();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('match-continue')), 140);
     expect(find.byKey(const Key('match-continue')),findsOneWidget);
   });
 
