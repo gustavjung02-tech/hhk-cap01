@@ -154,8 +154,10 @@ class _AccountPageState extends State<AccountPage> {
     await licenseManager.activate(api,current,key.id);
     await loadKeys();
     await widget.onLicenseChanged?.call();
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content:Text('Đã kích hoạt quyền học offline trên thiết bị.')));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content:Text('Đã kích hoạt quyền học offline trên thiết bị.')));
+    }
   });
 
   Future<void> renewKey(AccountKey key) => run(() async {
@@ -166,8 +168,10 @@ class _AccountPageState extends State<AccountPage> {
     } finally {
       await widget.onLicenseChanged?.call();
     }
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content:Text('Đã gia hạn quyền học offline.')));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content:Text('Đã gia hạn quyền học offline.')));
+    }
   });
 
   Future<void> transferKey(AccountKey key, String fromDeviceId) => run(() async {
@@ -176,8 +180,10 @@ class _AccountPageState extends State<AccountPage> {
     await licenseManager.transfer(api,current,key.id,fromDeviceId);
     await loadKeys();
     await widget.onLicenseChanged?.call();
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content:Text('Đã chuyển quyền sang thiết bị hiện tại.')));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content:Text('Đã chuyển quyền sang thiết bị hiện tại.')));
+    }
   });
 
   Future<void> openKeyDevices(AccountKey key) async {
