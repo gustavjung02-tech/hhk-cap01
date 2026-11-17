@@ -41,16 +41,17 @@ if (!url) {
     assert.equal(result.status,200,JSON.stringify(result.body));
     return code;
   };
-  const batch = async (campaignCode:string, quantityPacks=1) => {
+  const batch = async (campaignCode:string, quantityTokens=1) => {
     const result = await json('/api/v1/admin/batches', {
-      batchCode:'BATCH_' + ++n,campaignCode,quantityPacks
+      batchCode:'BATCH_' + ++n,campaignCode,quantityTokens
     }, true);
     assert.equal(result.status,200,JSON.stringify(result.body));
-    assert.equal(result.body.notebooksPerPack,20);
-    assert.equal(result.body.qrTokens.length,quantityPacks);
+    assert.equal('notebooksPerPack' in result.body,false);
+    assert.equal(result.body.qrTokens.length,quantityTokens);
     return result.body.qrTokens as string[];
   };
-  const redeem = (token:string) => json('/api/v1/claims/redeem',{token});
+  const redeem = (token:string) => json('/api/v1/claims/redeem',{token},true);
+  const legacyDevice = (route:string,proof:unknown) => json(route,proof,true);
   const device = (licenseKey:string,action:'activate'|'verify'|'transfer',
                   keypair=generateKeyPairSync('ed25519')) => {
     const devicePublicKey = keypair.publicKey.export({type:'spki',format:'der'})
@@ -75,9 +76,11 @@ if (!url) {
     const securitySql = readFileSync(new URL('../../db-prisma/migrations/0004_account_security.sql',
                                            import.meta.url),'utf8');
     await pool.query(securitySql);
+    const genericSql=readFileSync(new URL('../../db-prisma/migrations/0005_generic_claim_batches.sql', import.meta.url),'utf8');
+    await pool.query(genericSql);
   });
   beforeEach(async () => {
-    await pool.query('TRUNCATE TABLE license_audit,device_activations,licenses,claim_tokens,reward_campaigns,print_batches,account_security_audit,account_action_tokens,account_sessions,app_accounts,account_action_throttle RESTART IDENTITY CASCADE');
+    await pool.query('TRUNCATE TABLE license_audit,device_activations,licenses,claim_tokens,reward_campaigns,claim_batches,account_security_audit,account_action_tokens,account_sessions,app_accounts,account_action_throttle RESTART IDENTITY CASCADE');
     sentMail.length = 0;
   });
   after(async () => {await pool.end();});
@@ -86,7 +89,7 @@ if (!url) {
     const response=await app.request('/api/v1/health');
     assert.equal(response.status,200);
     assert.equal((await response.json()).status,'ready');
-    const q=await pool.query("SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('print_batches','reward_campaigns','claim_tokens','licenses','device_activations','license_audit')");
+    const q=await pool.query("SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('claim_batches','reward_campaigns','claim_tokens','licenses','device_activations','license_audit')");
     assert.equal(q.rows[0].n,6);
   });
 
@@ -99,17 +102,23 @@ if (!url) {
     },true)).body.code,'INVALID_CAMPAIGN');
     const code=await campaign();
     assert.equal((await json('/api/v1/admin/batches',{
-      batchCode:'PACK_ONE',campaignCode:code,quantityPacks:2
+      batchCode:'BATCH_ONE',campaignCode:code,quantityTokens:2
     },true)).status,200);
     assert.equal((await json('/api/v1/admin/batches',{
-      batchCode:'PACK_TWO',campaignCode:code,quantityPacks:101
+      batchCode:'BATCH_TWO',campaignCode:code,quantityTokens:1001
     },true)).status,400);
+    assert.equal((await json('/api/v1/admin/batches',{
+      batchCode:'BATCH_OLD',campaignCode:code,quantityPacks:2
+    },true)).body.code,'INVALID_BATCH');
   });
 
   test('same QR concurrently redeems exactly once',async () => {
     const [token]=await batch(await campaign());
-    const attempts=await Promise.all([redeem(token),redeem(token)]);
-    assert.deepEqual(attempts.map(x=>x.status).sort(),[200,409]);
+    assert.equal((await json('/api/v1/claims/redeem',{token})).status,401);
+    const attempts=await Promise.all(Array.from({length:32},()=>redeem(token)));
+
+    assert.equal(attempts.filter(x=>x.status===200).length,1);
+    assert.equal(attempts.filter(x=>x.status===409).length,attempts.length-1);
     assert.deepEqual(attempts.find(x=>x.status===200)!.body.grades,[1,3]);
     assert.equal((await redeem(token)).body.code,'TOKEN_ALREADY_USED');
     const licenses=await pool.query('SELECT count(*)::int AS n FROM licenses');
@@ -122,7 +131,7 @@ if (!url) {
     const [token]=await batch(await campaign());
     const licenseKey=(await redeem(token)).body.licenseKey as string;
     const firstPair=generateKeyPairSync('ed25519');
-    const result=await json('/api/v1/licenses/activate',device(licenseKey,'activate',firstPair));
+    const result=await legacyDevice('/api/v1/licenses/activate',device(licenseKey,'activate',firstPair));
     assert.equal(result.status,200,JSON.stringify(result.body));
     assert.deepEqual(result.body.grades,[1,3]);
     const [payload,signature]=(result.body.lease as string).split('.');
@@ -133,15 +142,15 @@ if (!url) {
       Buffer.from(signature,'base64url')),true);
     assert.equal((JSON.parse(Buffer.from(payload,'base64url').toString())).kind,
       'hhk-offline-license-v1');
-    assert.equal((await json('/api/v1/licenses/activate',
+    assert.equal((await legacyDevice('/api/v1/licenses/activate',
       device(licenseKey,'activate',firstPair))).status,200);
-    assert.equal((await json('/api/v1/licenses/activate',
+    assert.equal((await legacyDevice('/api/v1/licenses/activate',
       device(licenseKey,'activate'))).body.code,'DEVICE_LIMIT_REACHED');
-    assert.equal((await json('/api/v1/licenses/verify',
+    assert.equal((await legacyDevice('/api/v1/licenses/verify',
       device(licenseKey,'verify',firstPair))).status,200);
     const bad=device(licenseKey,'verify',firstPair);
     bad.proof=randomBytes(64).toString('base64url');
-    assert.equal((await json('/api/v1/licenses/verify',bad)).status,401);
+    assert.equal((await legacyDevice('/api/v1/licenses/verify',bad)).status,401);
     assert.equal((await pool.query('SELECT count(*)::int AS n FROM device_activations')).rows[0].n,1);
   });
 
@@ -149,10 +158,11 @@ if (!url) {
     const [token]=await batch(await campaign());
     const key=(await redeem(token)).body.licenseKey as string;
     const attempts=await Promise.all([
-      json('/api/v1/licenses/activate',device(key,'activate')),
-      json('/api/v1/licenses/activate',device(key,'activate'))
+      legacyDevice('/api/v1/licenses/activate',device(key,'activate')),
+      legacyDevice('/api/v1/licenses/activate',device(key,'activate'))
     ]);
-    assert.deepEqual(attempts.map(x=>x.status).sort(),[200,409]);
+    assert.equal(attempts.filter(x=>x.status===200).length,1);
+    assert.equal(attempts.filter(x=>x.status===409).length,attempts.length-1);
     const count=await pool.query('SELECT count(*)::int AS n FROM device_activations WHERE active=true');
     assert.equal(count.rows[0].n,1);
   });
@@ -161,7 +171,7 @@ if (!url) {
     const [qr]=await batch(await campaign());
     const claim=await redeem(qr);
     const key=claim.body.licenseKey as string;
-    assert.equal((await json('/api/v1/licenses/activate',device(key,'activate'))).status,200);
+    assert.equal((await legacyDevice('/api/v1/licenses/activate',device(key,'activate'))).status,200);
     await assert.rejects(
       pool.query(
         'INSERT INTO device_activations (id,license_id,device_public_key_hash) VALUES (gen_random_uuid(),$1,$2)',
@@ -180,20 +190,93 @@ if (!url) {
     const claim=await redeem(token), key=claim.body.licenseKey as string;
     const oldPair=generateKeyPairSync('ed25519');
     const old=device(key,'activate',oldPair);
-    assert.equal((await json('/api/v1/licenses/activate',old)).status,200);
+    assert.equal((await legacyDevice('/api/v1/licenses/activate',old)).status,200);
     const newPair=generateKeyPairSync('ed25519');
     const request={...device(key,'transfer',newPair),fromDevicePublicKey:old.devicePublicKey};
     assert.equal((await json('/api/v1/licenses/transfer',request)).status,401);
     assert.equal((await json('/api/v1/licenses/transfer',request,true)).status,200);
-    assert.equal((await json('/api/v1/licenses/verify',device(key,'verify',oldPair))).status,403);
-    assert.equal((await json('/api/v1/licenses/verify',device(key,'verify',newPair))).status,200);
+    assert.equal((await legacyDevice('/api/v1/licenses/verify',device(key,'verify',oldPair))).status,403);
+    assert.equal((await legacyDevice('/api/v1/licenses/verify',device(key,'verify',newPair))).status,200);
     const revoke=await json('/api/v1/licenses/revoke',{licenseId:claim.body.licenseId},true);
     assert.equal(revoke.status,200);
-    assert.equal((await json('/api/v1/licenses/verify',
+    assert.equal((await legacyDevice('/api/v1/licenses/verify',
       device(key,'verify',newPair))).body.code,'LICENSE_REVOKED');
     assert.equal((await json('/api/v1/licenses/revoke',
       {licenseId:claim.body.licenseId},true)).status,200);
     assert.equal((await pool.query('SELECT count(*)::int AS n FROM device_activations WHERE active=true')).rows[0].n,0);
+  });
+
+
+  // Account-scoped proof must be signed by the target device, not another owner.
+  const accountDevice = (licenseId:string,action:'account-activate'|'account-verify'|'account-transfer',
+      pair=generateKeyPairSync('ed25519')) => {
+    const devicePublicKey=pair.publicKey.export({type:'spki',format:'der'})
+      .subarray(-32).toString('base64url');
+    const nonce=randomBytes(18).toString('base64url');
+    const signedAt=Date.now();
+    const proof=sign(null,Buffer.from(proofMessage(action,licenseId,devicePublicKey,nonce,signedAt)),
+      pair.privateKey).toString('base64url');
+    return {licenseId,devicePublicKey,nonce,signedAt,proof};
+  };
+
+  test('owner-only device activate, verify, list, transfer, cross-account rejection',async () => {
+    const a=await json('/api/v1/accounts/register',
+      {email:'owner@example.test',password:'owner-password-long-123'});
+    assert.equal(a.status,200);
+    const b=await json('/api/v1/accounts/register',
+      {email:'intruder@example.test',password:'intruder-password-long-123'});
+    assert.equal(b.status,200);
+    const authA=await json('/api/v1/accounts/login',
+      {email:'owner@example.test',password:'owner-password-long-123'});
+    const authB=await json('/api/v1/accounts/login',
+      {email:'intruder@example.test',password:'intruder-password-long-123'});
+    const call=async(token:string,path:string,body?:unknown) => {
+      const response=await app.request(path,{method:body==null?'GET':'POST',
+        headers:{authorization:'Bearer '+token,
+          ...(body==null?{}:{'content-type':'application/json'})},
+        ...(body==null?{}:{body:JSON.stringify(body)})});
+      return {status:response.status,body:await response.json() as Record<string,any>};
+    };
+    const [qr]=await batch(await campaign());
+    const claimed=await call(authA.body.sessionToken,
+      '/api/v1/account/claims/redeem',{token:qr});
+    assert.equal(claimed.status,200);
+    const licenseId=claimed.body.licenseId as string;
+    const firstKey=generateKeyPairSync('ed25519');
+    const first=accountDevice(licenseId,'account-activate',firstKey);
+    assert.equal((await call(authB.body.sessionToken,
+      '/api/v1/account/keys/activate',first)).status,404);
+    assert.equal((await call(authA.body.sessionToken,
+      '/api/v1/account/keys/activate',first)).status,200);
+    const listPath='/api/v1/account/keys/'+licenseId+'/devices';
+    assert.equal((await call(authB.body.sessionToken,listPath)).status,404);
+    const list=await call(authA.body.sessionToken,listPath);
+    assert.equal(list.status,200);
+    assert.equal(list.body.devices.length,1);
+    assert.equal(list.body.devices[0].active,true);
+    assert.equal((await call(authA.body.sessionToken,
+      '/api/v1/account/keys/activate',
+      accountDevice(licenseId,'account-activate'))).body.code,'DEVICE_LIMIT_REACHED');
+    const secondKey=generateKeyPairSync('ed25519');
+    const transfer={...accountDevice(licenseId,'account-transfer',secondKey),
+      fromDeviceId:list.body.devices[0].id as string};
+    assert.equal((await call(authB.body.sessionToken,
+      '/api/v1/account/keys/transfer',transfer)).status,404);
+    assert.equal((await call(authA.body.sessionToken,
+      '/api/v1/account/keys/transfer',transfer)).status,200);
+    assert.equal((await call(authA.body.sessionToken,
+      '/api/v1/account/keys/verify',
+      accountDevice(licenseId,'account-verify',firstKey))).body.code,'DEVICE_NOT_ACTIVE');
+    assert.equal((await call(authA.body.sessionToken,
+      '/api/v1/account/keys/verify',
+      accountDevice(licenseId,'account-verify',secondKey))).status,200);
+    assert.equal((await call(authA.body.sessionToken,
+      '/api/v1/account/keys/transfer',transfer)).body.code,'SOURCE_DEVICE_NOT_ACTIVE');
+    const latest=await call(authA.body.sessionToken,listPath);
+    assert.equal(latest.body.devices.filter((d:any)=>d.active).length,1);
+    assert.equal((await json('/api/v1/licenses/activate',
+      device(claimed.body.licenseKey,'activate',secondKey))).status,401,
+      'legacy raw-key activation requires server administration');
   });
 
   test('real user accounts own the key inventory and QR redemption; keys never appear in list', async () => {

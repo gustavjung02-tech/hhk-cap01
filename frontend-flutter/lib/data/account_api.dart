@@ -17,6 +17,16 @@ class AccountApiException implements Exception {
         'TOKEN_NOT_FOUND' => 'Không tìm thấy mã QR này.',
         'KEY_ALREADY_LINKED' => 'Key này đã gắn với tài khoản khác.',
         'LICENSE_NOT_FOUND' => 'Không tìm thấy key.',
+        'DEVICE_LIMIT_REACHED' => 'Đã hết số thiết bị được phép. Chọn Đổi thiết bị.',
+        'DEVICE_REVOKED' => 'Thiết bị này đã bị thu hồi quyền.',
+        'DEVICE_NOT_ACTIVE' => 'Thiết bị này chưa được kích hoạt.',
+        'SOURCE_DEVICE_NOT_ACTIVE' => 'Thiết bị cũ không còn hoạt động.',
+        'TARGET_ALREADY_REGISTERED' => 'Thiết bị này đã được đăng ký trước đó.',
+        'LICENSE_EXPIRED' => 'Key đã hết hạn.',
+        'LICENSE_REVOKED' || 'LICENSE_INACTIVE' => 'Key đã bị thu hồi.',
+        'CAMPAIGN_NOT_ACTIVE' => 'Mã chưa được phép phát hành hoặc đã ngưng.',
+        'INVALID_DEVICE_PROOF' || 'INVALID_DEVICE_SIGNATURE' =>
+          'Xác minh bảo mật thiết bị thất bại.',
         'UNAUTHORIZED' => 'Phiên bị thu hồi. Vui lòng đăng nhập lại.',
         'INVALID_ACTION_TOKEN' => 'Liên kết không hợp lệ, đã hết hạn hoặc đã được dùng.',
         'PASSWORD_UNCHANGED' => 'Mật khẩu mới phải khác mật khẩu hiện tại.',
@@ -64,6 +74,17 @@ class AccountKey {
             ? null
             : DateTime.parse(raw['validUntil'] as String),
       );
+}
+
+
+class AccountKeyDevice {
+  final String id;
+  final String fingerprint;
+  final bool active;
+  const AccountKeyDevice(this.id,this.fingerprint,this.active);
+  factory AccountKeyDevice.fromJson(Map<String,dynamic> row) =>
+    AccountKeyDevice(row['id'] as String,row['fingerprint'] as String,
+      row['active'] == true);
 }
 
 class AccountSession {
@@ -290,6 +311,24 @@ class AccountApi {
   Future<String> verifyKey(AccountSession session, Map<String, dynamic> proof) async {
     final result = await _call('/api/v1/account/keys/verify',
         token: session.token, body: proof);
+    return result['lease'] as String;
+  }
+
+
+  Future<List<AccountKeyDevice>> devicesForKey(AccountSession session,
+      String licenseId) async {
+    final id = Uri.encodeComponent(licenseId);
+    final result = await _call('/api/v1/account/keys/$id/devices',
+      token:session.token);
+    return (result['devices'] as List)
+        .map((row)=>AccountKeyDevice.fromJson(Map<String,dynamic>.from(row as Map)))
+        .toList();
+  }
+
+  Future<String> transferKey(AccountSession session,
+      Map<String,dynamic> proof) async {
+    final result = await _call('/api/v1/account/keys/transfer',
+      token:session.token,body:proof);
     return result['lease'] as String;
   }
 

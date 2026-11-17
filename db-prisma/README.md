@@ -8,7 +8,7 @@ Project: [gus-02](https://console.prisma.io/ph998iyve9m9q7pz3cc2q3mu/t5ke1mdd3u7
 - `staging`: Prisma preview branch `br_jaj4yknwox2kog9397s25rnw`.
 - `hhk-staging`: Prisma Postgres `db_l4ds0m8jnxux66bd3erlnvqe`, region `ap-southeast-1`, status **ready**, belongs to project `gus-02`.
 - Before migration: 0 user tables under schema `public`.
-- Applied exactly `db-prisma/migrations/0001_license_only.sql` to **hhk-staging only**. Live database introspection confirms 6 tables: `print_batches`, `reward_campaigns`, `claim_tokens`, `licenses`, `device_activations`, `license_audit`.
+- Lịch sử: migration `0001` từng tạo bảng `print_batches` cùng thông số kinh doanh không còn hợp lệ. Migration `0005_generic_claim_batches.sql` chuyển tên thành **`claim_batches`**, đổi số lượng thành `token_count` và bỏ cột quy cách; FK token được PostgreSQL giữ khi đổi tên.
 - Catalog checks confirm foreign-key, uniqueness, check constraints and expected indexes (32 constraints and 15 indexes for 0001).
 - Applied **0002_device_limit.sql** after [CI green](https://github.com/gustavjung02-tech/hhk-cap01/actions/runs/43716503565) on staging only. Live queries confirm version ledger hhk_schema_migrations contains 0001/0002; triggers trg_hhk_device_limit and trg_hhk_license_limit exist on the intended tables.
 - Staging has zero batches, QR tokens, licenses or device activations after the migrations.

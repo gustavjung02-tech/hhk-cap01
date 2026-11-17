@@ -1,10 +1,10 @@
-# Quyết định kiến trúc HHK (15/11/2026)
+# Quyết định kiến trúc HHK (cập nhật 17/11/2026)
 
 ## Nghiệp vụ
 
-1. Mỗi **lốc 20 cuốn tập** có **một mã nhận quà** (QR/tem). QR không phải license; tránh để lộ token đổi quà trước khi mua.
-2. Khách quét QR tới **website công ty** (website ngoài phạm vi repo app), website đổi token lấy **key**. Key đưa vào app Flutter để kích hoạt một lần khi có mạng.
-3. Mỗi key có các quyền gắn với chiến dịch (ví dụ lớp được mở, ngày hết hạn, số thiết bị). **Chưa chốt phần thưởng, thời hạn, xác suất hay giá trị** nên tất cả đều cấu hình trên server.
+1. **QR là mã nhận quyền độc lập với sản phẩm vật lý**. Không cố định số lượng hay cách phân phối sản phẩm trong phần mềm. Mỗi token có thể đổi tối đa một lần; việc phát hành token phải được quản trị cho phép.
+2. Người dùng đã đăng nhập quét/nhập QR **trong app Flutter** → backend phát hành key vào đúng tài khoản → chủ tài khoản kích hoạt quyền học trên thiết bị bằng chữ ký Ed25519.
+3. Mỗi key có chính sách cấu hình từ backend: lớp được mở, thời hạn quyền học, giới hạn thiết bị. Không mô hình hóa quy cách kinh doanh trong schema QR.
 4. Sau kích hoạt, học bài, chấm câu hỏi, thống kê tiến độ/XP đều diễn ra **trên điện thoại** khi offline. XP là động lực trong máy; không có giải đấu/bảng xếp hạng trực tuyến giả.
 5. Không có Chat AI, chatbot Gemini, proxy AI, API key AI hoặc thanh toán trong app.
 6. Đổi điện thoại: có thể kích hoạt lại theo chính sách chuyển máy; **tiến độ chỉ chuyển nếu có bản sao lưu**. Mặc định local-only, không tự động đồng bộ dữ liệu trẻ em lên server.
@@ -19,10 +19,10 @@
 
 ## License & bảo mật
 
-- Prisma Postgres chứa `print_batches`, `claim_tokens`, `reward_campaigns`, `licenses`, `device_activations`, `license_audit`.
+- Prisma Postgres chứa `claim_batches`, `claim_tokens`, `reward_campaigns`, `licenses`, `device_activations`, `license_audit`.
 - Token QR/Key lưu **hash** ở DB; phát hành ngẫu nhiên đủ entropy và chống đoán; rate limit/IP abuse policy ở backend Prisma.
 - Backend Prisma chỉ xác nhận quyền, trả **offline license có chữ ký số** (device-bound, hạn sử dụng, policy version). Chữ ký được Flutter xác thực bằng public key trước khi mở quyền. Không cho Flutter tự đặt Premium trong SQLite.
-- Một token QR chỉ đổi quà một lần bằng transaction; phương án chống quét trước bán cần tem kín hoặc xác nhận mua hàng. Chuyển máy/thu hồi theo chính sách.
+- Một token QR chỉ nhận quyền một lần bằng transaction; endpoint không có tài khoản chỉ dành cho quản trị. Phương thức phân phối mã ở bên ngoài app, không áp đặt bởi phần mềm. Chuyển thiết bị đòi chữ ký máy mới và quyền sở hữu key.
 - API khi chưa cấu hình Prisma Postgres/khóa ký phải trả lỗi đóng, tuyệt đối không giả vờ kích hoạt thành công.
 
 ## Phân phối

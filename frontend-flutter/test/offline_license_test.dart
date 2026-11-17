@@ -62,6 +62,7 @@ void main() {
     const session = AccountSession('test-session','parent@example.test');
     await offline.activate(api,session,licenseId);
     expect(await offline.gradeAllowed(1),isTrue);
+    expect(await offline.hasValidLease(licenseId),isTrue);
     expect(await offline.gradeAllowed(3),isTrue);
     expect(await offline.gradeAllowed(4),isFalse);
     final recovered = OfflineLicenseManager(vault:vault,signingPublicKey:pin);
@@ -77,6 +78,7 @@ void main() {
       now:DateTime.now().toUtc().add(const Duration(days:3))),isFalse);
     final otherVault = MemoryLicenseVault();
     final otherDevice = OfflineLicenseManager(vault:otherVault,signingPublicKey:pin);
+    expect(await otherDevice.hasValidLease(licenseId),isFalse);
     expect(await otherDevice.verifyLease(signedLease,licenseId:licenseId),isFalse,
       reason:'A valid signature for another device must be rejected');
     api.close();

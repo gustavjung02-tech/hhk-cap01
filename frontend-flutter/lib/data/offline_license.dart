@@ -112,9 +112,42 @@ class OfflineLicenseManager {
     }
   }
 
+
+  Future<bool> hasValidLease(String licenseId) async {
+    final lease = await vault.read('hhk:lease:$licenseId');
+    return lease != null && await verifyLease(lease, licenseId: licenseId);
+  }
+
+  /// New device signs its own key, account ownership validated by server.
+  Future<void> transfer(AccountApi api, AccountSession session,
+      String licenseId, String fromDeviceId) async {
+    final proof = await _proof(licenseId, 'account-transfer');
+    final lease = await api.transferKey(session, {...proof, 'fromDeviceId':fromDeviceId});
+    if (!await verifyLease(lease,licenseId:licenseId)) {
+      throw const FormatException('INVALID_SIGNED_LEASE');
+    }
+    final rawIds = await vault.read(_leaseIds);
+    final ids = rawIds == null ? <String>[] :
+        (jsonDecode(rawIds) as List).cast<String>().toList();
+    await vault.write('hhk:lease:$licenseId',lease);
+    if (!ids.contains(licenseId)) {
+      ids.add(licenseId);
+      await vault.write(_leaseIds,jsonEncode(ids));
+    }
+  }
+
   Future<void> refresh(AccountApi api, AccountSession session, String licenseId) async {
     final proof = await _proof(licenseId, 'account-verify');
-    final lease = await api.verifyKey(session, proof);
+    late final String lease;
+    try {
+      lease = await api.verifyKey(session, proof);
+    } on AccountApiException catch(e) {
+      if ({'LICENSE_EXPIRED','LICENSE_REVOKED','DEVICE_NOT_ACTIVE','DEVICE_REVOKED'}
+          .contains(e.code)) {
+        await vault.write('hhk:lease:$licenseId','');
+      }
+      rethrow;
+    }
     if (!await verifyLease(lease, licenseId: licenseId)) {
       throw const FormatException('INVALID_SIGNED_LEASE');
     }

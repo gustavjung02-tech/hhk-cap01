@@ -50,8 +50,10 @@ export function createApp(service?: LicenseService, mailer?: AccountMailer) {
     '/api/v1/licenses/transfer': body => service!.transfer(body),
     '/api/v1/licenses/revoke': body => service!.revoke(body)
   };
+  // Raw-key/anonymous legacy endpoints are admin-only; user flows require ownership.
   const privileged = new Set([
     '/api/v1/admin/campaigns', '/api/v1/admin/batches',
+    '/api/v1/claims/redeem', '/api/v1/licenses/activate', '/api/v1/licenses/verify',
     '/api/v1/licenses/transfer', '/api/v1/licenses/revoke'
   ]);
 
@@ -148,6 +150,15 @@ export function createApp(service?: LicenseService, mailer?: AccountMailer) {
     (body, identity) => service!.activateAccount(identity!.id, body)));
   app.post('/api/v1/account/keys/verify', c => withAccount(c, true,
     (body, identity) => service!.verifyAccount(identity!.id, body)));
+  app.get('/api/v1/account/keys/:licenseId/devices', async c => {
+    if (!accounts || !service) return c.json({ok:false,code:'NOT_CONFIGURED'},503);
+    try {
+      const identity = await accounts.authenticate(c.req.header('authorization'));
+      return c.json({ok:true,...await service.accountDevices(identity.id,c.req.param('licenseId'))});
+    } catch (error) {return accountError(c,error);}
+  });
+  app.post('/api/v1/account/keys/transfer', c => withAccount(c,true,
+    (body,identity) => service!.transferAccount(identity!.id,body)));
   app.post('/api/v1/account/claims/redeem', c => withAccount(c, true,
     (body, identity) => service!.redeem(body, identity!.id)));
   for (const [path, handler] of Object.entries(handlers)) {

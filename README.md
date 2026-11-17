@@ -1,4 +1,4 @@
-# HHK CAP-01 — Flutter native, học offline, tặng kèm lốc tập
+# HHK CAP-01 — Flutter native, học offline và quản lý quyền học
 
 **Repo chính:** https://github.com/gustavjung02-tech/hhk-cap01  
 **Repo cũ chỉ đọc:** https://github.com/gustavjung01/cap-01 — không sửa, không xóa.
@@ -10,7 +10,7 @@
 - **Flutter/Dart trên thiết bị:** xem bài học, làm câu hỏi, chấm bài, XP, huy hiệu, nhiều hồ sơ, lưu tiến độ offline. SQLite trên Android/iOS; IndexedDB trên Web.
 - **Prisma backend + Prisma Postgres:** tối thiểu để đổi QR và kích hoạt / thu hồi key, không lưu mọi lần làm bài; không Chat AI.
 - **Cloudflare R2:** ảnh/âm thanh và content pack nếu cần cập nhật sau.
-- **Quà tặng:** 1 lốc **20 cuốn tập** có 1 mã nhận quà/QR. Khách quét vào website công ty lấy key, rồi kích hoạt trong app. Hình thức quà/thời hạn/ngẫu nhiên chưa chốt; không hardcode.
+- **QR/key:** QR là token nhận quyền dùng một lần. Người dùng quét trực tiếp trong app sau khi đăng nhập, key được lưu trong tài khoản; số lượng QR phát hành do quản trị chọn, quyền học do campaign policy quyết định. Phần mềm không định nghĩa cách đóng gói, số lượng sản phẩm hay mô hình bán hàng.
 - **Sao lưu tiến độ:** tính năng tùy chọn trong giai đoạn sau; ứng dụng học được khi không có mạng.
 
 ## Monorepo package manager
@@ -34,4 +34,4 @@ không được auto-deploy. Chỉ cấu hình build Prisma ở workspace backen
 
 Workflow `Import pinned legacy content` chạy tự động khi được bật: checkout `gustavjung01/cap-01` ở commit cố định, xuất **JSON, không copy code TSX/React**, copy riêng assets có ích. Đối chiếu `content/seed/v1/manifest.json` và chạy `node tooling/validate-export.mjs`.
 
-**Trạng thái:** PWA Flutter Web bản kiểm thử đã được deploy thủ công tại https://hhk-cap01-pwa.vercel.app. Prisma project hiện chưa có Postgres hoặc Compute app; QR/key chưa hoạt động. APK thương mại chưa phát hành. Xem `docs/MIGRATION_PLAN.md`.
+**Trạng thái:** PWA Flutter được phát hành thủ công tại https://hhk-cap01-pwa.vercel.app (CI nguồn xanh). Backend license chạy Vercel staging kết nối Prisma staging; triển khai migration `0005` cần có CI xanh và backup/restore trước khi áp. APK thương mại/QA thiết bị thật chưa hoàn tất.

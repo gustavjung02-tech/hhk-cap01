@@ -3,15 +3,17 @@ import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../data/account_api.dart';
+import '../../data/offline_license.dart';
 import 'account_security_page.dart';
 
 /// Parent/user account and key registry. Learner profiles remain offline-only.
 class AccountPage extends StatefulWidget {
   final AccountApi? api;
+  final OfflineLicenseManager? licenseManager;
   final AccountSession? initialSession;
   final Future<void> Function()? onSignedOut;
   final Future<void> Function()? onLicenseChanged;
-  const AccountPage({super.key, this.api, this.initialSession,
+  const AccountPage({super.key, this.api, this.licenseManager, this.initialSession,
       this.onSignedOut, this.onLicenseChanged});
 
   @override
@@ -20,6 +22,7 @@ class AccountPage extends StatefulWidget {
 
 class _AccountPageState extends State<AccountPage> {
   late final AccountApi api;
+  late final OfflineLicenseManager licenseManager;
   final email = TextEditingController();
   final password = TextEditingController();
   final qr = TextEditingController();
@@ -34,6 +37,7 @@ class _AccountPageState extends State<AccountPage> {
   void initState() {
     super.initState();
     api = widget.api ?? AccountApi();
+    licenseManager = widget.licenseManager ?? OfflineLicenseManager();
     session = widget.initialSession;
     if (session != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => run(loadKeys));
@@ -143,6 +147,76 @@ class _AccountPageState extends State<AccountPage> {
         }
       });
 
+
+  Future<void> activateKey(AccountKey key) => run(() async {
+    final current = session;
+    if (current == null) return;
+    await licenseManager.activate(api,current,key.id);
+    await loadKeys();
+    await widget.onLicenseChanged?.call();
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content:Text('Đã kích hoạt quyền học offline trên thiết bị.')));
+  });
+
+  Future<void> renewKey(AccountKey key) => run(() async {
+    final current = session;
+    if (current == null) return;
+    try {
+      await licenseManager.refresh(api,current,key.id);
+    } finally {
+      await widget.onLicenseChanged?.call();
+    }
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content:Text('Đã gia hạn quyền học offline.')));
+  });
+
+  Future<void> transferKey(AccountKey key, String fromDeviceId) => run(() async {
+    final current = session;
+    if (current == null) return;
+    await licenseManager.transfer(api,current,key.id,fromDeviceId);
+    await loadKeys();
+    await widget.onLicenseChanged?.call();
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content:Text('Đã chuyển quyền sang thiết bị hiện tại.')));
+  });
+
+  Future<void> openKeyDevices(AccountKey key) async {
+    final current = session;
+    if (current == null || busy) return;
+    try {
+      final devices = await api.devicesForKey(current,key.id);
+      if (!mounted) return;
+      final sourceId = await showModalBottomSheet<String>(
+        context: context,
+        isScrollControlled: true,
+        builder: (sheetContext) => SafeArea(
+          child: Padding(padding: const EdgeInsets.all(16),
+            child: ListView(shrinkWrap:true, children:[
+              Text('Thiết bị của key',style:Theme.of(sheetContext).textTheme.titleLarge),
+              const SizedBox(height:10),
+              const Text('Để chuyển quyền sang máy đang dùng, chọn thiết bị cũ cần thay thế. Việc chuyển cần có kết nối mạng.'),
+              const SizedBox(height:12),
+              if (devices.isEmpty) const ListTile(
+                title:Text('Chưa có thiết bị nào được kích hoạt.')),
+              for (final device in devices)
+                ListTile(
+                  leading: Icon(device.active ? Icons.smartphone : Icons.phonelink_erase),
+                  title: Text('Thiết bị ${device.fingerprint}'),
+                  subtitle: Text(device.active ? 'Đang hoạt động' : 'Đã thu hồi'),
+                  trailing: device.active
+                    ? const Icon(Icons.swap_horiz) : null,
+                  onTap: device.active
+                    ? () => Navigator.pop(sheetContext,device.id) : null,
+                ),
+            ])),
+        ),
+      );
+      if (sourceId != null && mounted) await transferKey(key,sourceId);
+    } on AccountApiException catch (e) {
+      if (mounted) setState(() => error = e.message);
+    }
+  }
+
   Future<void> scanQr() async {
     if (busy || session == null) return;
     final scanned = await Navigator.of(context).push<String>(
@@ -212,7 +286,7 @@ class _AccountPageState extends State<AccountPage> {
       if (busy) const LinearProgressIndicator(),
       if (session == null) _loggedOut() else _loggedIn(),
       const SizedBox(height: 12),
-      const Text('Tài khoản là quản lý key online. Gắn key chưa đồng nghĩa đã kích hoạt quyền học offline trên thiết bị; bước xác minh chữ ký sẽ được tích hợp riêng.',
+      const Text('Tài khoản quản lý key online. Kích hoạt hoặc gia hạn để nhận quyền học offline có chữ ký bảo mật trên thiết bị này.',
           style: TextStyle(fontSize: 12, color: Colors.grey)),
     ]);
   }
@@ -291,7 +365,7 @@ class _AccountPageState extends State<AccountPage> {
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Text('Quét QR trên lốc 20 cuốn',
+              Text('Quét mã QR nhận quyền học',
                   style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
               FilledButton.icon(
@@ -343,14 +417,50 @@ class _AccountPageState extends State<AccountPage> {
             padding: EdgeInsets.all(16),
             child: Text('Chưa có key. Quét QR hoặc nhập key để thêm vào tài khoản.'),
           )),
+
         for (final key in keys)
-          Card(child: ListTile(
-            leading: const Icon(Icons.vpn_key_outlined),
-            title: Text('Key ${key.id.substring(0, 8)}…'),
-            subtitle: Text(
-                'Lớp ${key.grades.join(', ')} • ${key.status} • Thiết bị ${key.activeDevices}/${key.maxDevices}\n'
-                'Hạn: ${key.validUntil?.toLocal().toString().split(' ').first ?? 'Không giới hạn'}'),
-          )),
+          Card(child: Padding(padding:const EdgeInsets.fromLTRB(8,8,8,12),
+            child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+              ListTile(
+                leading:const Icon(Icons.vpn_key_outlined),
+                title:Text('Key ${key.id.substring(0, 8)}…'),
+                subtitle:Text(
+                  'Lớp ${key.grades.join(', ')} • ${key.status} • Thiết bị ${key.activeDevices}/${key.maxDevices}\n'
+                  'Hạn: ${key.validUntil?.toLocal().toString().split(' ').first ?? 'Không giới hạn'}'),
+              ),
+              FutureBuilder<bool>(
+                future:licenseManager.hasValidLease(key.id),
+                builder:(context,snapshot)=>Padding(
+                  padding:const EdgeInsets.symmetric(horizontal:14),
+                  child:Row(children:[
+                    Icon(snapshot.data == true
+                      ? Icons.verified_user : Icons.offline_bolt_outlined,
+                      size:17,color:snapshot.data == true ? Colors.green : Colors.grey),
+                    const SizedBox(width:6),
+                    Expanded(child:Text(snapshot.data == true
+                      ? 'Đã có quyền offline hợp lệ trên máy này'
+                      : 'Chưa có quyền offline hợp lệ trên máy này',
+                      style:const TextStyle(fontSize:12))),
+                  ]))),
+              const SizedBox(height:6),
+              Padding(padding:const EdgeInsets.symmetric(horizontal:8),
+                child:Wrap(spacing:8,runSpacing:6,children:[
+                  FilledButton.icon(
+                    onPressed:busy || key.status == 'revoked' || key.status == 'expired'
+                      ? null : ()=>activateKey(key),
+                    icon:const Icon(Icons.verified_user_outlined,size:17),
+                    label:const Text('Kích hoạt')),
+                  OutlinedButton.icon(
+                    onPressed:busy || key.status == 'revoked' || key.status == 'expired'
+                      ? null : ()=>renewKey(key),
+                    icon:const Icon(Icons.refresh,size:17),
+                    label:const Text('Gia hạn')),
+                  TextButton.icon(onPressed:busy?null:()=>openKeyDevices(key),
+                    icon:const Icon(Icons.devices_outlined,size:17),
+                    label:const Text('Đổi thiết bị')),
+                ])),
+            ]))),
+
       ]);
 }
 
@@ -364,7 +474,7 @@ class _ClaimQrScannerState extends State<ClaimQrScanner> {
   bool scanned = false;
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Quét QR trên lốc tập')),
+        appBar: AppBar(title: const Text('Quét mã QR')),
         body: Column(children: [
           const Padding(
             padding: EdgeInsets.all(16),

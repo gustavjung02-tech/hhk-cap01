@@ -1,3 +1,10 @@
+## QR/key/device contract correction — 17/11/2026
+- Owner clarified: no physical-product quantities or packaging policies in HHK. QR codes are opaque one-use claim tokens; authorized admin creates a batch with an explicit `quantityTokens` count and campaign rights (grades, validDays, maxDevices).
+- Database migration `0005_generic_claim_batches.sql` renames historic issuance batch table to `claim_batches`, changes count to `token_count`, drops obsolete business column, and supports new license source `qr_claim`; previously issued records/audit remain unchanged.
+- Public legacy raw-key/QR endpoints become **admin-only**, while accounts use authenticated endpoints. Owner-scoped device inventory and new-device signed transfer, plus Flutter Activate/Renew/Change device actions, live in source.
+- Migration must run **staging only after exact SHA 5/5 green CI and off-database restorable backup**. No changes to production Prisma DB or `main`. Production Flutter URL remains `https://hhk-cap01-pwa.vercel.app`; backend data remains staging.
+- Issue #8/#7/#9 real-device QA remains open; signed leases can remain effective offline until expiry despite server revocation.
+
 ## Release update — 16/11/2026 23:27 UTC+7 (authoritative)
 
 **User direction: deploy Flutter PWA directly to production URL; do not use preview deployments as the acceptance/test destination.** The Vercel PWA project is public-facing production, but the account/license API and Prisma DB intentionally remain **staging** for test data until separate production-backend authorization. This override replaces previous text below that held the PWA alias pending manual device QA; **device/browser QA is still open and must never be marked PASS without evidence.**
@@ -15,7 +22,7 @@
 
 ## Fixed business boundaries
 - One user/parent account can own many keys. Each key has at most one owner.
-- One printed pack of 20 notebooks has a QR claim usable exactly once. QR scan/redeem takes place inside Flutter after account login, not on a separate website; raw license key is displayed only when issued.
+- Each QR claim token may be redeemed **once** into an account-owned key; no product/package size or sales-rule assumption is encoded. Flutter scans/redeems only after account login. Raw license key is displayed only when issued.
 - Backend retains only accounts, email proof, sessions, license/QR/campaign/registered device/audit. Student profiles, answers, progress, XP remain local SQLite/IndexedDB. Static PWA assets are not inherently confidential.
 - Ed25519-signed, device-bound lease controls offline learning eligibility; issued leases can remain effective until expiry while a device is offline.
 

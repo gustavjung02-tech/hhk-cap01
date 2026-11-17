@@ -24,7 +24,7 @@ Prisma backend + Prisma Postgres: QR redemption, activation, device move, licens
 | M0 | Cây repo sạch + Flutter shell + Prisma API fail-closed + PostgreSQL schema | lint/CI, không legacy runtime |
 | M1 | Export đủ dữ liệu thật từ source pinned; assets và catalog | unique ID, FK, manifest SHA256, grade/subject coverage |
 | M2 | Flutter Native lessons/practice/quiz + SQLite | học offline, crash/restart không mất tiến độ, test |
-| M3 | Tem QR 20 cuốn & license server | token dùng một lần, signed offline license, anti-replay, rate-limit |
+| M3 | QR cấp quyền & license server | token dùng một lần, cấp theo số mã cấu hình, signed offline license, anti-replay, account isolation |
 | M4 | Phát hành APK / iOS feasibility / update content | signed build, thiết bị thực, offline/license tests |
 | M5 | Tùy chọn backup và marketing | bảo mật, chính sách dữ liệu trẻ em, user consent |
 

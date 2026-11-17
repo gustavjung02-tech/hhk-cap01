@@ -89,7 +89,7 @@ type AccountDevice = {
 
 // The signed message uses the license ID, not a raw bearer license key.
 // Distinct action names prevent replaying v1 activate/verify/transfer proofs.
-function parseAccountDevice(value: unknown, action: 'account-activate' | 'account-verify'):
+function parseAccountDevice(value: unknown, action: 'account-activate' | 'account-verify' | 'account-transfer'):
   AccountDevice {
   const p = value as Record<string, unknown> | null;
   if (!p || typeof p.licenseId !== 'string' || !uuidPattern.test(p.licenseId) ||
@@ -196,8 +196,8 @@ export class LicenseService {
     const p = value as Record<string, unknown> | null;
     if (!p || typeof p.batchCode !== 'string' || !codePattern.test(p.batchCode) ||
         typeof p.campaignCode !== 'string' || !codePattern.test(p.campaignCode) ||
-        !Number.isInteger(p.quantityPacks) || (p.quantityPacks as number) < 1 ||
-        (p.quantityPacks as number) > 100) {
+        !Number.isInteger(p.quantityTokens) || (p.quantityTokens as number) < 1 ||
+        (p.quantityTokens as number) > 1000) {
       throw new ApiFault(400, 'INVALID_BATCH');
     }
     return transaction(this.config.pool, async c => {
@@ -208,11 +208,11 @@ export class LicenseService {
       if (!campaigns.rows[0]) throw new ApiFault(409, 'CAMPAIGN_NOT_ACTIVE');
       const batchId = randomUUID();
       await c.query(
-        'INSERT INTO print_batches (id,batch_code,notebooks_per_pack,quantity_packs) VALUES ($1,$2,20,$3)',
-        [batchId, p.batchCode, p.quantityPacks]
+        'INSERT INTO claim_batches (id,batch_code,token_count) VALUES ($1,$2,$3)',
+        [batchId, p.batchCode, p.quantityTokens]
       );
       const qrTokens: string[] = [];
-      for (let i = 0; i < (p.quantityPacks as number); i++) {
+      for (let i = 0; i < (p.quantityTokens as number); i++) {
         const raw = token('qr_');
         await c.query(
           'INSERT INTO claim_tokens (id,batch_id,token_hash,campaign_id) VALUES ($1,$2,$3,$4)',
@@ -220,7 +220,7 @@ export class LicenseService {
         );
         qrTokens.push(raw);
       }
-      return {batchId, batchCode: p.batchCode, notebooksPerPack: 20, qrTokens};
+      return {batchId, batchCode: p.batchCode, qrTokens};
     });
   }
 
@@ -244,7 +244,7 @@ export class LicenseService {
       const licenseId = randomUUID();
       const policy = claim.policy;
       const inserted = await c.query<{valid_until: Date}>(
-        "INSERT INTO licenses (id,token_id,license_hash,source,entitled_grades,valid_until,max_devices,status,account_id) VALUES ($1,$2,$3,'book_gift',$4::smallint[],now() + $5::integer * interval '1 day',$6,'issued',$7) RETURNING valid_until",
+        "INSERT INTO licenses (id,token_id,license_hash,source,entitled_grades,valid_until,max_devices,status,account_id) VALUES ($1,$2,$3,'qr_claim',$4::smallint[],now() + $5::integer * interval '1 day',$6,'issued',$7) RETURNING valid_until",
         [licenseId, claim.id, digest(licenseKey), policy.grades, policy.validDays,
          policy.maxDevices, accountId ?? null]
       );
@@ -371,6 +371,62 @@ export class LicenseService {
         await this.lookupAccountLicense(c, accountId, device.licenseId, false),
         device);
     } finally { c.release(); }
+  }
+
+
+  // Account owner can list registered slots, without exposing raw license keys.
+  async accountDevices(accountId: string, licenseId: string) {
+    if (!uuidPattern.test(licenseId)) throw new ApiFault(400, 'INVALID_LICENSE_ID');
+    const rows = await this.config.pool.query<{
+      id: string; active: boolean; activated_at: Date; revoked_at: Date | null;
+      fingerprint: string;
+    }>(
+      `SELECT d.id,d.active,d.activated_at,d.revoked_at,
+         left(encode(d.device_public_key_hash,'hex'),12) AS fingerprint
+       FROM device_activations d JOIN licenses l ON l.id=d.license_id
+       WHERE d.license_id=$1 AND l.account_id=$2
+       ORDER BY d.activated_at DESC`,
+      [licenseId, accountId]
+    );
+    // Don't disclose account/license existence to another user.
+    const own = await this.config.pool.query(
+      'SELECT 1 FROM licenses WHERE id=$1 AND account_id=$2', [licenseId, accountId]);
+    if (!own.rows.length) throw new ApiFault(404, 'LICENSE_NOT_FOUND');
+    return {devices: rows.rows.map(row => ({
+      id:row.id, active:row.active, fingerprint:row.fingerprint,
+      activatedAt:row.activated_at, revokedAt:row.revoked_at
+    }))};
+  }
+
+  // New device signs its own key; account auth and DB row lock authorize transfer.
+  // The source device can be selected by id, without copying its private key.
+  async transferAccount(accountId: string, value: unknown) {
+    const device = parseAccountDevice(value, 'account-transfer');
+    const p = value as Record<string, unknown>;
+    if (typeof p.fromDeviceId !== 'string' || !uuidPattern.test(p.fromDeviceId)) {
+      throw new ApiFault(400, 'INVALID_TRANSFER');
+    }
+    return transaction(this.config.pool, async c => {
+      const license = await this.lookupAccountLicense(c, accountId, device.licenseId, true);
+      const old = await c.query<DeviceRow>(
+        'SELECT id,active FROM device_activations WHERE id=$1 AND license_id=$2 FOR UPDATE',
+        [p.fromDeviceId, license.id]);
+      if (!old.rows[0]?.active) throw new ApiFault(409, 'SOURCE_DEVICE_NOT_ACTIVE');
+      const already = await c.query<DeviceRow>(
+        'SELECT id,active FROM device_activations WHERE license_id=$1 AND device_public_key_hash=$2',
+        [license.id,device.deviceHash]);
+      if (already.rows.length) throw new ApiFault(409, 'TARGET_ALREADY_REGISTERED');
+      await c.query(
+        'UPDATE device_activations SET active=false,revoked_at=now() WHERE id=$1',
+        [old.rows[0].id]);
+      await c.query(
+        'INSERT INTO device_activations (id,license_id,device_public_key_hash) VALUES ($1,$2,$3)',
+        [randomUUID(),license.id,device.deviceHash]);
+      await c.query(
+        "INSERT INTO license_audit (license_id,operation,outcome) VALUES ($1,'transfer','success')",
+        [license.id]);
+      return this.lease(license, device.deviceHashHex);
+    });
   }
 
   async revoke(value: unknown) {
