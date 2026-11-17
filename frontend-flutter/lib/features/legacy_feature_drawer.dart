@@ -23,8 +23,8 @@ const legacyMenuGroups = <LegacyMenuGroup>[
         available: true),
     LegacyMenuItem('review', 'Ôn tập thông minh', Icons.refresh,
         available: true),
-    LegacyMenuItem('memory', 'Phòng trí nhớ', Icons.psychology_outlined),
-    LegacyMenuItem('mindmap', 'Sơ đồ tư duy', Icons.account_tree_outlined),
+    LegacyMenuItem('memory', 'Phòng trí nhớ', Icons.psychology_outlined, available: true),
+    LegacyMenuItem('mindmap', 'Sơ đồ tư duy', Icons.account_tree_outlined, available: true),
     LegacyMenuItem('curriculum', 'Giáo trình', Icons.book_outlined,
         available: true),
     LegacyMenuItem('assistant', 'Trợ lý học tập', Icons.lightbulb_outline),
@@ -34,7 +34,7 @@ const legacyMenuGroups = <LegacyMenuGroup>[
         Icons.calendar_month_outlined, available: true),
     LegacyMenuItem('games', 'Mini-Game', Icons.sports_esports_outlined,
         available: true),
-    LegacyMenuItem('drawing', 'Vẽ & tô màu', Icons.brush_outlined),
+    LegacyMenuItem('drawing', 'Vẽ & tô màu', Icons.brush_outlined, available: true),
     LegacyMenuItem('competition', 'Thi đấu', Icons.sports_kabaddi_outlined),
   ]),
   LegacyMenuGroup('Thành tích', [
@@ -46,7 +46,7 @@ const legacyMenuGroups = <LegacyMenuGroup>[
         Icons.emoji_events_outlined),
     LegacyMenuItem('achievements', 'Thành tựu', Icons.star_outline),
     LegacyMenuItem('avatar', 'Cửa hàng avatar',
-        Icons.shopping_bag_outlined),
+        Icons.shopping_bag_outlined, available: true),
   ]),
   LegacyMenuGroup('Cài đặt & gia đình', [
     LegacyMenuItem('profiles', 'Hồ sơ học sinh',

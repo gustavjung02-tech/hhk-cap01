@@ -15,7 +15,9 @@ void main() {
     ]));
     expect(entries.where((e) => e.id == 'games').single.available, isTrue);
     expect(entries.where((e) => e.id == 'daily').single.available, isTrue);
-    expect(entries.where((e) => e.id == 'drawing').single.available, isFalse);
+    for (final id in ['drawing', 'memory', 'mindmap', 'avatar']) {
+      expect(entries.where((e) => e.id == id).single.available, isTrue);
+    }
     expect(entries.where((e) => e.id == 'review').single.available, isTrue);
   });
 

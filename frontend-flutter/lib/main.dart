@@ -6,6 +6,8 @@ import 'data/local_store.dart';
 import 'data/study_ledger.dart';
 import 'data/offline_license.dart';
 import 'data/offline_fun.dart';
+import 'features/creative_drawing_page.dart';
+import 'features/creative_learning_pages.dart';
 import 'features/study/lesson_page.dart';
 import 'features/native_ui.dart';
 import 'features/learning_entitlement_gate.dart';
@@ -487,6 +489,37 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       case 'games':
         await _openFunMode(null);
+        return;
+      case 'drawing':
+        final profile = activeProfile;
+        if (profile == null) return;
+        await Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (_) => CreativeDrawingPage(
+            store: store, profileId: profile.id, grade: grade)));
+        return;
+      case 'memory':
+      case 'mindmap':
+        final profile = activeProfile;
+        if (profile == null) return;
+        try {
+          final pack = await currentPack;
+          if (!mounted) return;
+          await Navigator.of(context).push(MaterialPageRoute<void>(
+            builder: (_) => feature.id == 'memory'
+              ? MemoryRoomPage(pack: pack, store: store,
+                  profileId: profile.id)
+              : MindMapPage(pack: pack)));
+        } catch (_) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Không tải được nội dung bài học.')));
+        }
+        return;
+      case 'avatar':
+        final profile = activeProfile;
+        if (profile == null) return;
+        await Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (_) => AvatarShopPage(
+            store: store, ledger: ledger, profile: profile)));
         return;
       case 'parent':
         Navigator.of(context).push(MaterialPageRoute<void>(
