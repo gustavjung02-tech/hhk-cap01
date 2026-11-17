@@ -1,3 +1,13 @@
+## [LATEST] 17/11/2026 — Mini-game P1-A2 production released
+
+- **App:** https://hhk-cap01-pwa.vercel.app — `dpl_3w2skUp2rBonYA431rNEu4VkRX8R` target `production` READY, alias verified. Source `staging@3720cf3edcf66105964a9932bebbab3247e912c4`. [CI run 44035281373](https://github.com/gustavjung02-tech/hhk-cap01/actions/runs/44035281373) **5/5 green**: 47 Flutter tests, Web/PWA offline, Android debug, backend, IndexedDB and content.
+- Added four real offline Flutter games from pinned legacy: **Ghép Cặp, Xếp Chữ, Tốc Độ (8 s/câu), Điền Từ**. User enters **Menu 3 gạch → Mini-Game**; game opens only after a fresh signed-device-lease check. Data are gradeable catalog questions only; best score stored offline per learner/grade/game and **not** credited as StudyLedger XP. Full source notes in `docs/OFFLINE_EXTRA_GAMES.md`.
+- Production smoke HTTP 200 for `/`, `main.dart.js`, `manifest.json`, `hhk-sw.js`, Dopi and hero; service worker `f6df8fa78d864657892b`. Rollback PWA deployment `dpl_EB1b8fFhTBN3RL8NHYEKPqogwaCd`.
+- **Backend & Prisma staging remain unchanged** (schema 0001–0005); no production DB migration, no merge `main`. Owner prefers direct production PWA after exact-source CI GREEN, never a preview URL for acceptance.
+- **NEXT / OPEN:** (#10/#15/#8/#9) QA iPhone Safari/Android physical app, camera QR, session/email/password/reset E2E, signed offline lease expiry/restart/transfer. (#14) port drawing/coloring with offline persistence; then memory room, mind map, inventory/avatar and audio. These are not marked done without real device/manual QA evidence.
+
+---
+
 ## P1-A2 — 4 mini-game còn thiếu (17/11/2026)
 - Theo đúng legacy pinned `gustavjung01/cap-01@7ab83326`: `MatchGamePage`, `WordScramblePage`, `SpeedQuizPage`, `FillBlankPage`. Flutter mới không phụ thuộc React/backend.
 - `FunQuestionEngine.selectTypes` dùng chung bộ `QuizEvaluator.canGrade`. Ghép Cặp chỉ nhận `single_choice` có câu/đáp án ngắn và duy nhất; Xếp Chữ dùng từ đúng một từ, có đáp án trong options, tách chữ Unicode; Tốc Độ chỉ dùng trắc nghiệm đơn có đáp án kiểm chứng và giới hạn 8 giây; Điền Từ chỉ dùng `fill_number`/trắc nghiệm có thể chấm chắc chắn, từ chối `fill_text` mơ hồ.

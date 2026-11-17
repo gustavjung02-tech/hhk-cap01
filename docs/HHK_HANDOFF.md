@@ -1,3 +1,13 @@
+## [LATEST] 17/11/2026 — Mini-game P1-A2 production released
+
+- **App:** https://hhk-cap01-pwa.vercel.app — `dpl_3w2skUp2rBonYA431rNEu4VkRX8R` target `production` READY, alias verified. Source `staging@3720cf3edcf66105964a9932bebbab3247e912c4`. [CI run 44035281373](https://github.com/gustavjung02-tech/hhk-cap01/actions/runs/44035281373) **5/5 green**: 47 Flutter tests, Web/PWA offline, Android debug, backend, IndexedDB and content.
+- Added four real offline Flutter games from pinned legacy: **Ghép Cặp, Xếp Chữ, Tốc Độ (8 s/câu), Điền Từ**. User enters **Menu 3 gạch → Mini-Game**; game opens only after a fresh signed-device-lease check. Data are gradeable catalog questions only; best score stored offline per learner/grade/game and **not** credited as StudyLedger XP. Full source notes in `docs/OFFLINE_EXTRA_GAMES.md`.
+- Production smoke HTTP 200 for `/`, `main.dart.js`, `manifest.json`, `hhk-sw.js`, Dopi and hero; service worker `f6df8fa78d864657892b`. Rollback PWA deployment `dpl_EB1b8fFhTBN3RL8NHYEKPqogwaCd`.
+- **Backend & Prisma staging remain unchanged** (schema 0001–0005); no production DB migration, no merge `main`. Owner prefers direct production PWA after exact-source CI GREEN, never a preview URL for acceptance.
+- **NEXT / OPEN:** (#10/#15/#8/#9) QA iPhone Safari/Android physical app, camera QR, session/email/password/reset E2E, signed offline lease expiry/restart/transfer. (#14) port drawing/coloring with offline persistence; then memory room, mind map, inventory/avatar and audio. These are not marked done without real device/manual QA evidence.
+
+---
+
 ## RELEASE CẬP NHẬT — QR/key/device (17/11/2026) — trạng thái mới nhất
 
 - Quyết định: QR token và quyền học không phụ thuộc quy cách/số lượng sản phẩm. Admin tạo `quantityTokens` mã theo campaign policy; mỗi token cấp tối đa một key thuộc một tài khoản. Những mô tả trước đây về quy cách đóng gói chỉ là lịch sử, không còn là yêu cầu phần mềm.
