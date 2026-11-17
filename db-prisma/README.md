@@ -1,3 +1,15 @@
+## RELEASE CẬP NHẬT — QR/key/device (17/11/2026) — trạng thái mới nhất
+
+- Quyết định: QR token và quyền học không phụ thuộc quy cách/số lượng sản phẩm. Admin tạo `quantityTokens` mã theo campaign policy; mỗi token cấp tối đa một key thuộc một tài khoản. Những mô tả trước đây về quy cách đóng gói chỉ là lịch sử, không còn là yêu cầu phần mềm.
+- Source `da4a43baa2a705832de0f00aee03cccbe8483981`, CI **5/5 PASS** [43989404146](https://github.com/gustavjung02-tech/hhk-cap01/actions/runs/43989404146). Flutter Web và Android debug build, PostgreSQL integration, IndexedDB, content và packaged PWA đều PASS.
+- Database **hhk-staging**: migration `0005_generic_claim_batches.sql` áp dụng sau backup + restore + migration rehearsal thành công. Ledger 0001–0005. Bảng `claim_batches` với `token_count`, cột cũ bị bỏ; dữ liệu 2 accounts/3 sessions/1 license/1 claim/1 batch giữ nguyên. **Production database và `main` không đụng tới**.
+- Backend staging mới `dpl_AFQWYWLKeFeUyihgg9kh3QsfydvQ` READY. Health 200; public signing key 200; các endpoint legacy không xác thực bị chặn 401; API chuyển quyền máy cũng yêu cầu session.
+- PWA **production** [hhk-cap01-pwa.vercel.app](https://hhk-cap01-pwa.vercel.app) `dpl_Huj7oT9q8kzUsQqZShKMQqKdVxcY` READY. Index, Flutter JS, manifest, SW, Dopi, hero ảnh 200; SW `8ced2e0a43e1ac351434`. Bản PWA rollback: `dpl_2mqpUzo7Eof1RLWEPFbC9GwzE8FG`.
+- Flutter account/key: nhận mã trong app, gắn key, kích hoạt offline, gia hạn lease và đổi thiết bị bằng chữ ký Ed25519; per-key trạng thái lease dựa trên secure storage; các trường hợp lỗi có thông báo.
+- **Còn OPEN**: test admin phát hành/claim QR **trên live staging** (bị chặn bởi an toàn kết nối quản trị), camera QR trên điện thoại thật, Safari iPhone/Android APK, lease expiration/storage eviction và email/session E2E (#8/#7/#9/#10/#15). CI disposable PostgreSQL có test redeem một lần, 32 yêu cầu đồng thời, chủ sở hữu, quota và transfer thành công; không thay thế test máy thật.
+- Backup và rollback chi tiết: [`docs/QR_TOKEN_RELEASE_20261117.md`](./QR_TOKEN_RELEASE_20261117.md). Không phát hành dữ liệu sản xuất; URL PWA production vẫn dùng backend/DB **staging**.
+
+---
 # Prisma Postgres — QR/License staging
 
 Project: [gus-02](https://console.prisma.io/ph998iyve9m9q7pz3cc2q3mu/t5ke1mdd3u72vvhw1ogmm5vn), workspace `ph998iyve9m9q7pz3cc2q3mu`.
