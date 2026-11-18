@@ -137,8 +137,12 @@ void main() {
     // Horizontal stroke must be consumed by the canvas rather than the list.
     await tester.dragFrom(tester.getCenter(canvas), const Offset(70, 2));
     await tester.pumpAndSettle();
-    expect(store.values.keys.any((key) => key.startsWith('art:v1:child-1:3')),
-        isTrue);
+    // On a phone the important case is a vertical stroke, which must not be
+    // swallowed by the vertically scrolling controls around the drawing.
+    await tester.dragFrom(tester.getCenter(canvas), const Offset(2, 70));
+    await tester.pumpAndSettle();
+    final saved = await ArtStore(store).load('child-1', 3);
+    expect(saved.strokes.length, 2);
     expect(tester.takeException(), isNull);
     // Rebuilding the page simulates returning after closing it.
     await _pumpPhone(tester, const Size(360, 740),
