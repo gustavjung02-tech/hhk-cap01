@@ -32,6 +32,7 @@ class _CreativeDrawingPageState extends State<CreativeDrawingPage> {
   bool saving = false;
   String? error;
   Future<void> pending = Future<void>.value();
+  int? activeDrawingPointer;
 
   @override
   void initState() {
@@ -155,7 +156,12 @@ class _CreativeDrawingPageState extends State<CreativeDrawingPage> {
     body: !loaded ? const Center(child: CircularProgressIndicator())
       : error != null ? Center(child: Padding(padding: const EdgeInsets.all(20),
           child: Text(error!, textAlign: TextAlign.center)))
-      : ListView(padding: const EdgeInsets.all(14), children: [
+      : ListView(
+          // During a stroke, vertical touch movement paints the canvas rather
+          // than scrolling its parent. Outside the canvas, scrolling remains.
+          physics: activeDrawingPointer == null
+              ? null : const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(14), children: [
         Text('Vẽ bằng tay • Lưu riêng cho từng học sinh và lớp',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodySmall),
@@ -174,12 +180,33 @@ class _CreativeDrawingPageState extends State<CreativeDrawingPage> {
             child: ClipRRect(borderRadius: BorderRadius.circular(16),
               child: LayoutBuilder(builder: (ctx, box) {
                 final size = Size(box.maxWidth, box.maxHeight);
-                return GestureDetector(
+                return Listener(
                   behavior: HitTestBehavior.opaque,
-                  onPanStart: (event) => begin(event.localPosition, size),
-                  onPanUpdate: (event) => move(event.localPosition, size),
-                  onPanEnd: (_) => finish(),
-                  onPanCancel: finish,
+                  onPointerDown: (event) {
+                    if (activeDrawingPointer != null ||
+                        !loaded || error != null || strokes.length >= 150) {
+                      return;
+                    }
+                    activeDrawingPointer = event.pointer;
+                    begin(event.localPosition, size);
+                  },
+                  onPointerMove: (event) {
+                    if (activeDrawingPointer == event.pointer) {
+                      move(event.localPosition, size);
+                    }
+                  },
+                  onPointerUp: (event) {
+                    if (activeDrawingPointer == event.pointer) {
+                      activeDrawingPointer = null;
+                      finish();
+                    }
+                  },
+                  onPointerCancel: (event) {
+                    if (activeDrawingPointer == event.pointer) {
+                      activeDrawingPointer = null;
+                      finish();
+                    }
+                  },
                   child: CustomPaint(painter: ArtPainter(template, strokes,
                     current, color, brush), child: const SizedBox.expand()),
                 );
