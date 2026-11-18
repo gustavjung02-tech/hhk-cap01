@@ -51,6 +51,9 @@ export function createApp(service?: LicenseService, mailer?: AccountMailer) {
     '/api/v1/licenses/revoke': body => service!.revoke(body)
   };
   // Raw-key/anonymous legacy endpoints are admin-only; user flows require ownership.
+  const panelRoutes = new Set([
+    '/api/v1/admin/campaigns', '/api/v1/admin/batches'
+  ]);
   const privileged = new Set([
     '/api/v1/admin/campaigns', '/api/v1/admin/batches',
     '/api/v1/claims/redeem', '/api/v1/licenses/activate', '/api/v1/licenses/verify',
@@ -163,7 +166,8 @@ export function createApp(service?: LicenseService, mailer?: AccountMailer) {
     (body, identity) => service!.redeem(body, identity!.id)));
   app.get('/api/v1/admin/batches', async c => {
     if (!service) return c.json({ok:false,code:'NOT_CONFIGURED'},503);
-    if (!service.authorized(c.req.header('authorization'))) {
+    if (!service.authorized(c.req.header('authorization')) &&
+        !service.authorizedQrPanel(c.req.header('authorization'))) {
       return c.json({ok:false,code:'UNAUTHORIZED'},401);
     }
     try {
@@ -178,7 +182,9 @@ export function createApp(service?: LicenseService, mailer?: AccountMailer) {
     app.post(path, async c => {
       if (!service) return c.json({ok: false, code: 'NOT_CONFIGURED'}, 503);
       if (privileged.has(path) &&
-          !service.authorized(c.req.header('authorization'))) {
+          !service.authorized(c.req.header('authorization')) &&
+          !(panelRoutes.has(path) &&
+            service.authorizedQrPanel(c.req.header('authorization')))) {
         return c.json({ok: false, code: 'UNAUTHORIZED'}, 401);
       }
       const contentLength = Number(c.req.header('content-length') ?? '0');

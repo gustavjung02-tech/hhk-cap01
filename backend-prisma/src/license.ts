@@ -20,6 +20,8 @@ export class ApiFault extends Error {
 export type LicenseConfig = {
   pool: Pool;
   adminKey: string;
+  /** Optional narrow credential for QR dashboard; never grants legacy raw-key routes. */
+  panelKey?: string;
   privateKey: KeyObject;
 };
 
@@ -149,6 +151,12 @@ export class LicenseService {
 
   authorized(header: string | undefined) {
     return isAdmin(header, this.config.adminKey);
+  }
+
+  authorizedQrPanel(header: string | undefined) {
+    return typeof this.config.panelKey === 'string' &&
+      this.config.panelKey.length >= 32 &&
+      isAdmin(header, this.config.panelKey);
   }
 
   async ping() {
@@ -537,7 +545,7 @@ export function serviceFromEnv(): LicenseService | undefined {
     if (privateKey.asymmetricKeyType !== 'ed25519') return undefined;
     return new LicenseService({
       pool: new Pool({connectionString: url, max: 8, connectionTimeoutMillis: 3000}),
-      adminKey, privateKey
+      adminKey, privateKey, panelKey: process.env.HHK_ADMIN_PANEL_KEY
     });
   } catch {
     return undefined;

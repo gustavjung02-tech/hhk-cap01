@@ -25,12 +25,9 @@
         <p>Tạo mã kích hoạt, tải QR để quét thử và theo dõi lượt sử dụng — tất cả trong một nơi.</p></div><div class="heading-art" aria-hidden="true">▦</div></div>
       <div class="notice"><strong>Quy trình:</strong> Tạo chương trình → Phát hành đợt mã → Tải QR → Dùng app HHK nhận mã và kích hoạt. Mỗi QR chỉ nhận quyền một lần.</div>
       <section id="security" class="card" aria-labelledby="security-title">
-        <div class="card-title"><span class="number">01</span><div><h2 id="security-title">Xác thực quản trị</h2><p>Nhập khóa quản trị của backend staging. Khóa không lưu trong trình duyệt.</p></div></div>
-        <div class="auth-row"><label class="field grow" for="admin-key"><span>ADMIN_API_KEY</span>
-          <input id="admin-key" type="password" placeholder="Dán khóa quản trị" autocomplete="off" spellcheck="false"></label>
-          <button class="btn secondary" type="button" id="verify-btn">Kiểm tra kết nối</button>
-          <button class="btn ghost" type="button" id="clear-key-btn">Xóa khóa</button></div>
-        <div class="helper">Khóa chỉ chuyển trực tiếp tới backend qua API cùng domain của trang quản trị; không đưa vào Git, localStorage hoặc IndexedDB.</div>
+        <div class="card-title"><span class="number">01</span><div><h2 id="security-title">Đã bảo vệ bằng tài khoản Vercel</h2><p>Chỉ tài khoản thuộc team quản trị được truy cập. Khóa cấp QR nằm trên server, không bao giờ được gửi xuống trình duyệt.</p></div></div>
+        <div class="auth-row"><button class="btn secondary" type="button" id="verify-btn">Kiểm tra kết nối quản trị</button></div>
+        <div class="helper">Bảo vệ bởi Vercel Authentication. Chỉ máy chủ HHK có quyền gọi API phát hành, còn app học sinh không thể phát hành QR.</div>
       </section>
       <div class="two-col">
         <section class="card" aria-labelledby="campaign-title">
@@ -79,7 +76,7 @@
         <div class="result-head"><div><h2 id="history-title">Các đợt đã cấp</h2><p>Chỉ xem thống kê; không có khả năng xem lại token gốc.</p></div>
           <button type="button" class="btn secondary" id="refresh-btn">Làm mới</button></div>
         <div class="table-wrap"><table><thead><tr><th>Mã đợt</th><th>Chương trình</th><th>Ngày tạo</th><th>Tổng mã</th><th>Đã dùng</th><th>Chưa dùng</th></tr></thead>
-          <tbody id="history-body"><tr><td colspan="6" class="empty">Nhập khóa quản trị và bấm “Làm mới” để xem thống kê.</td></tr></tbody></table></div>
+          <tbody id="history-body"><tr><td colspan="6" class="empty">Bấm “Làm mới” để xem thống kê.</td></tr></tbody></table></div>
       </section>
       <footer>HHK CAP-01 · Quản trị QR · Staging data · Không kết nối Git / không auto deploy</footer>
     </main>

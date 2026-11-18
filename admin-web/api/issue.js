@@ -1,7 +1,7 @@
 import {apiHeaders, allowedOrigin, error, readBody} from './_shared.js';
 
 // Fixed destination: only the existing HHK staging license backend is authorized.
-// A user's admin API key is supplied interactively and forwarded transiently.
+// A scoped secret is injected by Vercel server-side only, guarded by Vercel Authentication.
 const STAGING_BACKEND='https://hhk-cap01-license-staging-gustavjung02-techs-projects.vercel.app';
 const paths={
   campaign:'/api/v1/admin/campaigns',
@@ -20,10 +20,11 @@ export default async function handler(req,res) {
     res.setHeader('Allow',method);
     return error(res,405,'METHOD_NOT_ALLOWED');
   }
-  const auth=req.headers?.authorization;
-  if (typeof auth!=='string' || !/^Bearer [^\s]{16,512}$/.test(auth)) {
-    return error(res,401,'ADMIN_KEY_REQUIRED');
+  const panelKey=process.env.HHK_ADMIN_PANEL_KEY;
+  if (typeof panelKey!=='string' || panelKey.length<32) {
+    return error(res,503,'PANEL_NOT_CONFIGURED');
   }
+  const auth='Bearer '+panelKey;
   let body;
   if (method==='POST') {
     try { body=readBody(req); }

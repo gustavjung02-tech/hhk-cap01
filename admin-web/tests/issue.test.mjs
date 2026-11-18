@@ -40,9 +40,11 @@ test('origin protection rejects cross-site issuer requests',()=>{
   assert.equal(allowedOrigin(forged),false);
 });
 test('issuer forwards only allowlisted backend calls and refuses absent key',async()=>{
-  const noKey=response();
-  await issue(request('POST',{},'/api/issue?action=campaign',''),noKey);
-  assert.equal(noKey.statusCode,401);
+  delete process.env.HHK_ADMIN_PANEL_KEY;
+  const notConfigured=response();
+  await issue(request('POST',{},'/api/issue?action=campaign'),notConfigured);
+  assert.equal(notConfigured.statusCode,503);
+  process.env.HHK_ADMIN_PANEL_KEY='TEST_PANEL_CREDENTIAL_ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const unknown=response();
   await issue(request('POST',{},'/api/issue?action=delete'),unknown);
   assert.equal(unknown.statusCode,404);
@@ -61,7 +63,8 @@ test('issuer forwards only allowlisted backend calls and refuses absent key',asy
     assert.equal(res.headers['cache-control'].includes('no-store'),true);
     assert.equal(calls[0].url,
       'https://hhk-cap01-license-staging-gustavjung02-techs-projects.vercel.app/api/v1/admin/batches');
-    assert.equal(calls[0].options.headers.authorization,'Bearer '+'k'.repeat(32));
+    assert.equal(calls[0].options.headers.authorization,
+      'Bearer TEST_PANEL_CREDENTIAL_ABCDEFGHIJKLMNOPQRSTUVWXYZ');
     const list=response();
     await issue(request('GET',null,'/api/issue?action=list'),list);
     assert.equal(calls[1].options.method,'GET');

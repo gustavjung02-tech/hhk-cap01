@@ -1,6 +1,6 @@
 // Tokens exist only in memory until the operator downloads them.
 const $=id=>document.getElementById(id);
-const key=$('admin-key'), campaignCode=$('campaign-code');
+const campaignCode=$('campaign-code');
 const batchCampaign=$('batch-campaign'), batchCode=$('batch-code');
 let issued=null, downloaded=false, busy=false;
 let urls=[];
@@ -16,7 +16,7 @@ batchCampaign.value=campaignCode.value;
 batchCode.value=newCode('BATCH');
 const errors={
   UNAUTHORIZED:'Khóa quản trị không hợp lệ.',
-  ADMIN_KEY_REQUIRED:'Hãy nhập khóa ADMIN_API_KEY trước.',
+  PANEL_NOT_CONFIGURED:'Máy chủ quản trị chưa cấu hình credential cấp QR.',
   INVALID_CAMPAIGN:'Mã chương trình, quyền lớp hoặc thời hạn không hợp lệ.',
   INVALID_BATCH:'Mã đợt hoặc số lượng mã không hợp lệ.',
   CONFLICT:'Mã chương trình hoặc mã đợt đã tồn tại. Hãy dùng mã mới.',
@@ -37,11 +37,8 @@ function setBusy(v){
     $(id).disabled=v;
 }
 function validCode(value){return /^[A-Z0-9][A-Z0-9_-]{2,39}$/.test(value)}
-async function api(url,{method='POST',body,admin=false}={}){
-  const auth=key.value.trim();
-  if(admin&&auth.length<16)throw new Error('ADMIN_KEY_REQUIRED');
+async function api(url,{method='POST',body}={}){
   const headers={'content-type':'application/json'};
-  if(admin)headers.authorization='Bearer '+auth;
   let response;
   try{
     response=await fetch(url,{
@@ -71,9 +68,6 @@ $('verify-btn').addEventListener('click',()=>run(async()=>{
   drawHistory(info.batches);
   inform('Đã kết nối thành công. Đã tải '+info.batches.length+' đợt gần nhất.','success');
 }));
-$('clear-key-btn').addEventListener('click',()=>{
-  key.value='';inform('Đã xóa khóa khỏi ô nhập.','info');
-});
 $('campaign-form').addEventListener('submit',event=>{
   event.preventDefault();
   run(async()=>{

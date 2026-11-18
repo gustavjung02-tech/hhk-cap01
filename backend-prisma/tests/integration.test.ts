@@ -12,9 +12,11 @@ if (!url) {
 } else {
   const pool = new Pool({connectionString:url, max:6});
   const secret = 'TEST_ONLY_ADMIN_SECRET_ABCDEFGHIJKLMNOPQRSTUVWXYZ123456';
+  const panelSecret = 'TEST_ONLY_QR_PANEL_SECRET_ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   process.env.ADMIN_API_KEY = secret;
   const pair = generateKeyPairSync('ed25519');
-  const service = new LicenseService({pool, adminKey:secret, privateKey:pair.privateKey});
+  const service = new LicenseService({pool, adminKey:secret,
+    panelKey:panelSecret, privateKey:pair.privateKey});
   const sentMail: Array<{to:string;subject:string;url:string}> = [];
   const app = createApp(service, async (to,subject,actionUrl) => {
     sentMail.push({to,subject,url:actionUrl});
@@ -32,6 +34,19 @@ if (!url) {
     });
     return {status:response.status, body:await response.json() as Record<string,any>};
   };
+  test('narrow admin panel credential cannot call legacy privileged license routes',async () => {
+    const credential='Bearer ' + panelSecret;
+    const allowed=await app.request('/api/v1/admin/batches',{
+      headers:{authorization:credential}
+    });
+    assert.equal(allowed.status,200);
+    const legacy=await app.request('/api/v1/licenses/revoke',{
+      method:'POST',headers:{authorization:credential,'content-type':'application/json'},
+      body:JSON.stringify({licenseId:'unused'})
+    });
+    assert.equal(legacy.status,401);
+  });
+
   test('QR administration lists only metadata, never reusable raw tokens', async () => {
     const code='LIST_CAMP_' + ++n;
     const created = await json('/api/v1/admin/campaigns', {
