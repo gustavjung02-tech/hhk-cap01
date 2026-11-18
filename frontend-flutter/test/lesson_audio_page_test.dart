@@ -48,6 +48,10 @@ void main() {
     expect(find.text('Đã lưu offline 0/2 thẻ. Tải một lần để nghe khi mất mạng.'),
         findsOneWidget);
     expect(find.text('Nghe thẻ này'), findsNWidgets(2));
+    await tester.scrollUntilVisible(
+      find.text('Thẻ mới chưa có audio'), 180,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Thẻ mới chưa có audio'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
