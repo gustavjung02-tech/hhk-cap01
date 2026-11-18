@@ -18,6 +18,18 @@ void main() {
     expect(extractClaimToken('qr-short'), isNull);
   });
 
+  test('manual key parser is distinct from claim QR tokens', () {
+    expect(extractLicenseKey(key), key);
+    expect(extractLicenseKey(' \n$key \t'), key);
+    expect(extractLicenseKey(qr), isNull);
+    expect(extractClaimToken(key), isNull);
+    expect(extractLicenseKey('https://example.test/?token=$key'), isNull);
+    expect(const AccountApiException('INVALID_TOKEN').message,
+        contains('Mã QR'));
+    expect(const AccountApiException('INVALID_LICENSE_KEY').message,
+        contains('lic_'));
+  });
+
   test('login is server authenticated, inventory is scoped to bearer token', () async {
     final calls = <String>[];
     final mock = MockClient((request) async {
