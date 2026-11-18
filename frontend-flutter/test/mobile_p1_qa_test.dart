@@ -208,10 +208,12 @@ void main() {
     final store = _Store();
     final ledger = StudyLedger(store);
     await ledger.initialize();
+    // Avatar XP queries require a real locally persisted learner profile.
+    final profile = await ledger.createProfile('Bé An', 2);
     await _pumpPhone(tester, const Size(320, 568),
       AvatarShopPage(
         store: store, ledger: ledger,
-        profile: const StudentProfile(id: 'child-1', name: 'Bé An', grade: 2),
+        profile: profile,
       ), scale: 1.25);
     expect(find.text('Bé An'), findsOneWidget);
     expect(find.text('Mèo con'), findsOneWidget);
