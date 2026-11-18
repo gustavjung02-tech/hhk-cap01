@@ -15,10 +15,10 @@ class AccountApiException implements Exception {
         'INVALID_EMAIL' => 'Email chưa đúng định dạng.',
         'TOKEN_ALREADY_USED' => 'Mã QR đã được sử dụng.',
         'TOKEN_NOT_FOUND' => 'Không tìm thấy mã QR này.',
-        'INVALID_TOKEN' => 'Mã QR không hợp lệ. Kiểm tra và thử lại.',
+        'INVALID_TOKEN' => 'Mã QR chưa đúng. Dán mã bắt đầu bằng qr_.',
         'KEY_ALREADY_LINKED' => 'Key này đã gắn với tài khoản khác.',
         'LICENSE_NOT_FOUND' => 'Không tìm thấy key.',
-        'INVALID_LICENSE_KEY' => 'Key phải bắt đầu bằng lic_. Nếu có mã qr_, hãy dùng mục nhận QR.',
+        'INVALID_LICENSE_KEY' => 'Key phải bắt đầu bằng lic_. Mã qr_ cần được đổi lấy key.',
         'DEVICE_LIMIT_REACHED' => 'Đã hết số thiết bị được phép. Chọn Đổi thiết bị.',
         'DEVICE_REVOKED' => 'Thiết bị này đã bị thu hồi quyền.',
         'DEVICE_NOT_ACTIVE' => 'Thiết bị này chưa được kích hoạt.',
@@ -134,216 +134,10 @@ String? extractClaimToken(String value) {
   return extracted != null && token.hasMatch(extracted) ? extracted : null;
 }
 
-/// Existing activation key, distinct from a one-time QR claim token.
+/// An existing activation key, distinct from a one-time QR claim token.
 String? extractLicenseKey(String value) {
   final trimmed = value.trim();
-  return RegExp(r'^lic_[A-Za-z0-9_-]{32}
-  // Override for production release; this staging URL is not a production API.
-  static const defaultBase = String.fromEnvironment('HHK_API_BASE_URL',
-      defaultValue:
-          'https://hhk-cap01-license-staging-gustavjung02-techs-projects.vercel.app');
-  final String baseUrl;
-  final http.Client _client;
-  /// Installed by AuthGateway: rotated credentials must be securely persisted
-  /// before the change-password UI reports success.
-  Future<void> Function(AccountSession)? onSessionRotated;
-
-  Future<void> acceptRotatedSession(AccountSession next) async {
-    final save = onSessionRotated;
-    if (save == null) {
-      throw const AccountApiException('SESSION_STORAGE_UNAVAILABLE');
-    }
-    await save(next);
-  }
-
-  AccountApi({String baseUrl = defaultBase, http.Client? client})
-      : baseUrl = baseUrl.replaceAll(RegExp(r'/$'), ''),
-        _client = client ?? http.Client();
-
-  Future<Map<String, dynamic>> _call(
-      String path, {
-        String? token,
-        Map<String, dynamic>? body,
-      }) async {
-    try {
-      final uri = Uri.parse('$baseUrl$path');
-      final headers = <String, String>{
-        'Accept': 'application/json',
-        if (body != null) 'Content-Type': 'application/json',
-        if (token != null) 'Authorization': 'Bearer $token',
-      };
-      final response = (body == null
-              ? _client.get(uri, headers: headers)
-              : _client.post(uri, headers: headers, body: jsonEncode(body)))
-          .timeout(const Duration(seconds: 15));
-      final result = await response;
-      final parsed = jsonDecode(result.body);
-      if (parsed is! Map<String, dynamic>) {
-        throw const AccountApiException('INVALID_RESPONSE');
-      }
-      if (result.statusCode < 200 || result.statusCode >= 300 ||
-          parsed['ok'] != true) {
-        throw AccountApiException(
-            (parsed['code'] as String?) ?? 'SERVICE_UNAVAILABLE');
-      }
-      return parsed;
-    } on AccountApiException {
-      rethrow;
-    } catch (_) {
-      throw const AccountApiException('NETWORK_UNAVAILABLE');
-    }
-  }
-
-  String get deviceLabel {
-    if (kIsWeb) return 'Trình duyệt web';
-    return switch (defaultTargetPlatform) {
-      TargetPlatform.iOS => 'iPhone / iPad',
-      TargetPlatform.android => 'Thiết bị Android',
-      TargetPlatform.macOS => 'Máy Mac',
-      TargetPlatform.windows => 'Máy Windows',
-      TargetPlatform.linux => 'Máy Linux',
-      _ => 'Thiết bị HHK',
-    };
-  }
-
-  Future<AccountSession> login(String email, String password) async {
-    final result = await _call('/api/v1/accounts/login',
-        body: {'email': email, 'password': password, 'deviceLabel': deviceLabel});
-    final account = result['account'] as Map<String, dynamic>;
-    return AccountSession(result['sessionToken'] as String,
-        account['email'] as String,
-        emailVerified: account['emailVerified'] == true);
-  }
-
-  Future<void> register(String email, String password) async {
-    await _call('/api/v1/accounts/register',
-        body: {'email': email, 'password': password});
-  }
-
-  Future<AccountSession> me(AccountSession session) async {
-    final result = await _call('/api/v1/account/me', token: session.token);
-    final account = result['account'] as Map<String, dynamic>;
-    return AccountSession(session.token, account['email'] as String,
-        emailVerified: account['emailVerified'] == true);
-  }
-
-  Future<void> requestEmailVerification(String email) async {
-    await _call('/api/v1/accounts/email/verification/request',body: {'email':email});
-  }
-
-  Future<void> verifyEmail(String token) async {
-    await _call('/api/v1/accounts/email/verify',body: {'token': token});
-  }
-
-  Future<void> forgotPassword(String email) async {
-    await _call('/api/v1/accounts/password/forgot',body: {'email': email});
-  }
-
-  Future<void> resetPassword(String token, String newPassword) async {
-    await _call('/api/v1/accounts/password/reset',
-      body: {'token': token, 'newPassword': newPassword});
-  }
-
-  Future<AccountSession> changePassword(AccountSession current,
-      String currentPassword, String newPassword) async {
-    final result=await _call('/api/v1/account/password/change',
-      token:current.token,body: {
-        'currentPassword':currentPassword,'newPassword':newPassword
-      });
-    return AccountSession(result['sessionToken'] as String,current.email,
-        emailVerified:current.emailVerified);
-  }
-
-  Future<List<AccountDeviceSession>> sessions(AccountSession session) async {
-    final result=await _call('/api/v1/account/sessions',token:session.token);
-    return (result['sessions'] as List)
-      .map((x)=>AccountDeviceSession.fromJson(Map<String,dynamic>.from(x as Map)))
-      .toList();
-  }
-
-  Future<void> revokeSession(AccountSession session,String id) async {
-    await _call('/api/v1/account/sessions/revoke',
-        token:session.token,body:{'sessionId':id});
-  }
-
-  Future<void> logoutAll(AccountSession session) async {
-    await _call('/api/v1/account/logout-all',token:session.token,body:{});
-  }
-
-  Future<void> requestEmailChange(AccountSession session,
-      String newEmail,String currentPassword) async {
-    await _call('/api/v1/account/email/change/request',token:session.token,
-        body:{'newEmail':newEmail,'currentPassword':currentPassword});
-  }
-
-  Future<void> confirmEmailChange(String token) async {
-    await _call('/api/v1/accounts/email/change/confirm',body:{'token':token});
-  }
-
-  Future<List<AccountKey>> keys(AccountSession session) async {
-    final result = await _call('/api/v1/account/keys', token: session.token);
-    return (result['keys'] as List)
-        .map((raw) => AccountKey.fromJson(Map<String, dynamic>.from(raw as Map)))
-        .toList();
-  }
-
-  Future<RedeemedLicense> redeem(AccountSession session, String rawQr) async {
-    final token = extractClaimToken(rawQr);
-    if (token == null) throw const AccountApiException('INVALID_TOKEN');
-    final result = await _call('/api/v1/account/claims/redeem',
-        token: session.token, body: {'token': token});
-    return RedeemedLicense(
-        result['licenseKey'] as String,
-        result['licenseId'] as String,
-        (result['grades'] as List).map((n) => (n as num).toInt()).toList());
-  }
-
-  Future<void> linkKey(AccountSession session, String rawKey) async {
-    final key = extractLicenseKey(rawKey);
-    if (key == null) {
-      throw const AccountApiException('INVALID_LICENSE_KEY');
-    }
-    await _call('/api/v1/account/keys/link',
-        token: session.token, body: {'licenseKey': key});
-  }
-
-  Future<String> activateKey(AccountSession session, Map<String, dynamic> proof) async {
-    final result = await _call('/api/v1/account/keys/activate',
-        token: session.token, body: proof);
-    return result['lease'] as String;
-  }
-
-  Future<String> verifyKey(AccountSession session, Map<String, dynamic> proof) async {
-    final result = await _call('/api/v1/account/keys/verify',
-        token: session.token, body: proof);
-    return result['lease'] as String;
-  }
-
-
-  Future<List<AccountKeyDevice>> devicesForKey(AccountSession session,
-      String licenseId) async {
-    final id = Uri.encodeComponent(licenseId);
-    final result = await _call('/api/v1/account/keys/$id/devices',
-      token:session.token);
-    return (result['devices'] as List)
-        .map((row)=>AccountKeyDevice.fromJson(Map<String,dynamic>.from(row as Map)))
-        .toList();
-  }
-
-  Future<String> transferKey(AccountSession session,
-      Map<String,dynamic> proof) async {
-    final result = await _call('/api/v1/account/keys/transfer',
-      token:session.token,body:proof);
-    return result['lease'] as String;
-  }
-
-  Future<void> logout(AccountSession session) async {
-    await _call('/api/v1/account/logout', token: session.token, body: {});
-  }
-
-  void close() => _client.close();
-}
-).hasMatch(trimmed)
+  return RegExp(r'^lic_[A-Za-z0-9_-]{32}$').hasMatch(trimmed)
       ? trimmed
       : null;
 }
@@ -510,8 +304,8 @@ class AccountApi {
   }
 
   Future<void> linkKey(AccountSession session, String rawKey) async {
-    final key = rawKey.trim();
-    if (!RegExp(r'^lic_[A-Za-z0-9_-]{32}$').hasMatch(key)) {
+    final key = extractLicenseKey(rawKey);
+    if (key == null) {
       throw const AccountApiException('INVALID_LICENSE_KEY');
     }
     await _call('/api/v1/account/keys/link',
