@@ -48,21 +48,12 @@ void main() {
     expect(find.text('Đã lưu 0/700 đoạn'), findsOneWidget);
     expect(find.text('Tải toàn bộ âm thanh lớp 1'), findsOneWidget);
     expect(find.text('Tải âm thanh bài này'), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('download does not start without a valid grade license',
-      (tester) async {
-    await tester.pumpWidget(MaterialApp(home: GradeAudioDownloadPage(
-      grade: 2, storage: _Store(),
-      offlineLicense: OfflineLicenseManager(vault: _Vault()),
-    )));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Tải toàn bộ âm thanh lớp 2'));
+    await tester.tap(find.text('Tải toàn bộ âm thanh lớp 1'));
     await tester.pump();
     expect(find.textContaining('Hãy kích hoạt key'), findsOneWidget);
     expect(find.text('Đã lưu 0/700 đoạn'), findsOneWidget);
     await tester.pump(const Duration(seconds: 5));
     expect(tester.takeException(), isNull);
   });
+
 }
