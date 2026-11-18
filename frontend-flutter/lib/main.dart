@@ -624,7 +624,8 @@ class _HomeScreenState extends State<HomeScreen> {
     await Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => LessonPage(
         pack: pack, lesson: lesson,
-        ledger: ledger, profileId: profile.id),
+        ledger: ledger, profileId: profile.id,
+        storage: store, offlineLicense: offline),
     ));
     if (mounted) setState(_refreshProgress);
   }
