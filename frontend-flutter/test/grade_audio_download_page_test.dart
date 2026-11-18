@@ -49,7 +49,12 @@ void main() {
     expect(find.text('Tải toàn bộ âm thanh lớp 1'), findsOneWidget);
     expect(find.text('Tải âm thanh bài này'), findsNothing);
     await tester.tap(find.text('Tải toàn bộ âm thanh lớp 1'));
-    await tester.pump();
+    // The license read is asynchronous; advance until its toast is shown,
+    // without pumpAndSettle (which can expire the transient toast).
+    for (var i = 0; i < 10 &&
+        find.textContaining('Hãy kích hoạt key').evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     expect(find.textContaining('Hãy kích hoạt key'), findsOneWidget);
     expect(find.text('Đã lưu 0/700 đoạn'), findsOneWidget);
     await tester.pump(const Duration(seconds: 5));
