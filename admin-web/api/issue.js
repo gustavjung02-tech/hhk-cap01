@@ -1,4 +1,4 @@
-import {apiHeaders, allowedOrigin, error, readBody} from './_shared.js';
+import {apiHeaders, allowedOrigin, error, readBody} from '../lib/shared.js';
 
 // Fixed destination: only the existing HHK staging license backend is authorized.
 // A scoped secret is injected by Vercel server-side only, guarded by Vercel Authentication.

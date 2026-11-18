@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import JSZip from 'jszip';
-import {TOKEN_RE, CODE_RE,checkedTokens,checkedBatchCode,csvForBatch,allowedOrigin} from '../api/_shared.js';
+import {TOKEN_RE, CODE_RE,checkedTokens,checkedBatchCode,csvForBatch,allowedOrigin} from '../lib/shared.js';
 import issue from '../api/issue.js';
 import qr from '../api/qr.js';
 import exporter from '../api/export.js';

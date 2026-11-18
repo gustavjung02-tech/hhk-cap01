@@ -1,5 +1,5 @@
 import QRCode from 'qrcode';
-import {apiHeaders, allowedOrigin, error, readBody, checkedTokens} from './_shared.js';
+import {apiHeaders, allowedOrigin, error, readBody, checkedTokens} from '../lib/shared.js';
 
 export default async function handler(req,res) {
   apiHeaders(res);

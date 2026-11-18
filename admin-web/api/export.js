@@ -1,7 +1,7 @@
 import QRCode from 'qrcode';
 import JSZip from 'jszip';
 import {apiHeaders, allowedOrigin, error, readBody, checkedTokens,
-  checkedBatchCode, csvForBatch} from './_shared.js';
+  checkedBatchCode, csvForBatch} from '../lib/shared.js';
 
 export default async function handler(req,res) {
   apiHeaders(res);
