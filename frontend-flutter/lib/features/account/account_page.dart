@@ -5,6 +5,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../data/account_api.dart';
 import '../../data/offline_license.dart';
 import 'account_security_page.dart';
+import 'hhk_toast.dart';
 
 /// Parent/user account and key registry. Learner profiles remain offline-only.
 class AccountPage extends StatefulWidget {
@@ -25,12 +26,10 @@ class _AccountPageState extends State<AccountPage> {
   late final OfflineLicenseManager licenseManager;
   final email = TextEditingController();
   final password = TextEditingController();
-  final qr = TextEditingController();
-  final license = TextEditingController();
+  final accessCode = TextEditingController();
   AccountSession? session;
   List<AccountKey> keys = const [];
   bool busy = false;
-  String? error;
   bool createMode = false;
 
   @override
@@ -48,25 +47,22 @@ class _AccountPageState extends State<AccountPage> {
   void dispose() {
     email.dispose();
     password.dispose();
-    qr.dispose();
-    license.dispose();
+    accessCode.dispose();
     if (widget.api == null) api.close();
     super.dispose();
   }
 
   Future<void> run(Future<void> Function() task) async {
     if (busy) return;
-    setState(() {
-      busy = true;
-      error = null;
-    });
+    setState(() => busy = true);
     try {
       await task();
     } on AccountApiException catch (e) {
-      if (mounted) setState(() => error = e.message);
+      if (mounted) HhkToast.show(context, e.message, kind: HhkToastKind.error);
     } catch (_) {
       if (mounted) {
-        setState(() => error = 'Kết nối thất bại, vui lòng thử lại.');
+        HhkToast.show(context, 'Kết nối thất bại, vui lòng thử lại.',
+            kind: HhkToastKind.error);
       }
     } finally {
       if (mounted) setState(() => busy = false);
@@ -99,7 +95,7 @@ class _AccountPageState extends State<AccountPage> {
         final current = session;
         if (current == null) return;
         final issued = await api.redeem(current, raw);
-        qr.clear();
+        accessCode.clear();
         await loadKeys();
         if (!mounted) return;
         await showDialog<void>(
@@ -135,17 +131,32 @@ class _AccountPageState extends State<AccountPage> {
                 ));
       });
 
-  Future<void> attachKey() => run(() async {
+  Future<void> attachKey(String code) => run(() async {
         final current = session;
         if (current == null) return;
-        await api.linkKey(current, license.text);
-        license.clear();
+        await api.linkKey(current, code);
+        accessCode.clear();
         await loadKeys();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Đã thêm key vào tài khoản.')));
+          HhkToast.show(context, 'Đã thêm key vào tài khoản.',
+              kind: HhkToastKind.success);
         }
       });
+
+  /// Camera and manual entry use the same strict parser and API flows.
+  /// QR tokens redeem once; existing license keys link without redeeming.
+  Future<void> submitAccessCode(String raw) async {
+    if (busy || session == null) return;
+    if (extractClaimToken(raw) != null) {
+      await redeem(raw);
+    } else if (extractLicenseKey(raw) != null) {
+      await attachKey(raw);
+    } else {
+      HhkToast.show(context,
+          'Mã chưa đúng. Dán mã QR bắt đầu qr_ hoặc key bắt đầu lic_.',
+          kind: HhkToastKind.error);
+    }
+  }
 
 
   Future<void> activateKey(AccountKey key) => run(() async {
@@ -155,8 +166,8 @@ class _AccountPageState extends State<AccountPage> {
     await loadKeys();
     await widget.onLicenseChanged?.call();
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content:Text('Đã kích hoạt quyền học offline trên thiết bị.')));
+      HhkToast.show(context, 'Đã kích hoạt quyền học offline trên thiết bị.',
+          kind: HhkToastKind.success);
     }
   });
 
@@ -169,8 +180,8 @@ class _AccountPageState extends State<AccountPage> {
       await widget.onLicenseChanged?.call();
     }
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content:Text('Đã gia hạn quyền học offline.')));
+      HhkToast.show(context, 'Đã gia hạn quyền học offline.',
+          kind: HhkToastKind.success);
     }
   });
 
@@ -181,8 +192,8 @@ class _AccountPageState extends State<AccountPage> {
     await loadKeys();
     await widget.onLicenseChanged?.call();
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content:Text('Đã chuyển quyền sang thiết bị hiện tại.')));
+      HhkToast.show(context, 'Đã chuyển quyền sang thiết bị hiện tại.',
+          kind: HhkToastKind.success);
     }
   });
 
@@ -219,7 +230,9 @@ class _AccountPageState extends State<AccountPage> {
       );
       if (sourceId != null && mounted) await transferKey(key,sourceId);
     } on AccountApiException catch (e) {
-      if (mounted) setState(() => error = e.message);
+      if (mounted) {
+        HhkToast.show(context, e.message, kind: HhkToastKind.error);
+      }
     }
   }
 
@@ -228,7 +241,7 @@ class _AccountPageState extends State<AccountPage> {
     final scanned = await Navigator.of(context).push<String>(
         MaterialPageRoute(builder: (_) => const ClaimQrScanner()));
     if (scanned != null && mounted) {
-      await redeem(scanned);
+      await submitAccessCode(scanned);
     }
   }
 
@@ -254,8 +267,9 @@ class _AccountPageState extends State<AccountPage> {
     if(session==null)return;
     await api.requestEmailVerification(session!.email);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content:Text('Nếu email chưa xác minh, một liên kết xác nhận sẽ được gửi.')));
+      HhkToast.show(context,
+          'Nếu email chưa xác minh, một liên kết xác nhận sẽ được gửi.',
+          kind: HhkToastKind.info);
     }
   });
 
@@ -270,8 +284,7 @@ class _AccountPageState extends State<AccountPage> {
           setState(() {
             session = null;
             keys = const [];
-            qr.clear();
-            license.clear();
+            accessCode.clear();
           });
         }
       });
@@ -284,11 +297,6 @@ class _AccountPageState extends State<AccountPage> {
       const SizedBox(height: 8),
       const Text('Một tài khoản quản lý các key được nhận từ QR. Hồ sơ học sinh, XP và lịch sử học vẫn lưu offline trên máy.'),
       const SizedBox(height: 12),
-      if (error != null)
-        Card(child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Text(error!, style: const TextStyle(color: Colors.red)),
-        )),
       if (busy) const LinearProgressIndicator(),
       if (session == null) _loggedOut() else _loggedIn(),
       const SizedBox(height: 12),
@@ -326,7 +334,6 @@ class _AccountPageState extends State<AccountPage> {
                     ? null
                     : () => setState(() {
                           createMode = !createMode;
-                          error = null;
                         }),
                 child: Text(createMode
                     ? 'Đã có tài khoản? Đăng nhập'
@@ -373,6 +380,8 @@ class _AccountPageState extends State<AccountPage> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               Text('Quét mã QR nhận quyền học',
                   style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 4),
+              const Text('Quét QR hoặc dán mã qr_... / key lic_... vào cùng một ô.'),
               const SizedBox(height: 8),
               FilledButton.icon(
                   onPressed: busy ? null : scanQr,
@@ -380,32 +389,18 @@ class _AccountPageState extends State<AccountPage> {
                   label: const Text('Mở camera quét QR')),
               const SizedBox(height: 8),
               TextField(
-                  controller: qr,
+                  key: const Key('account-access-code'),
+                  controller: accessCode,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  textCapitalization: TextCapitalization.none,
                   decoration: const InputDecoration(
-                      labelText: 'Hoặc nhập mã QR / dán đường dẫn')),
+                      labelText: 'Dán mã QR hoặc key',
+                      hintText: 'qr_... hoặc lic_...')),
               const SizedBox(height: 8),
               OutlinedButton(
-                  onPressed: busy ? null : () => redeem(qr.text),
-                  child: const Text('Đổi QR lấy key trong tài khoản')),
-            ]),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Text('Đã có key từ trước?',
-                  style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 8),
-              TextField(
-                  controller: license,
-                  decoration: const InputDecoration(
-                      labelText: 'Nhập key lic_... để liên kết')),
-              const SizedBox(height: 8),
-              OutlinedButton(
-                  onPressed: busy ? null : attachKey,
-                  child: const Text('Thêm key vào tài khoản')),
+                  onPressed: busy ? null : () => submitAccessCode(accessCode.text),
+                  child: const Text('Nhận quyền / thêm key')),
             ]),
           ),
         ),
