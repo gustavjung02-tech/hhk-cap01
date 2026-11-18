@@ -4,9 +4,7 @@ import {execFileSync} from 'node:child_process';
 // Only static frontend files enter the public output. Do not publish
 // api/, lib/, node_modules/, tests/, environment values or package.json.
 const STATIC_FILES=['index.html','styles.css','app.js'];
-for (const file of STATIC_FILES) {
-  execFileSync(process.execPath,['--check',file],{stdio:'inherit'});
-}
+execFileSync(process.execPath,['--check','app.js'],{stdio:'inherit'});
 await mkdir('public',{recursive:true});
 for (const file of STATIC_FILES) {
   await copyFile(file,'public/'+file);
