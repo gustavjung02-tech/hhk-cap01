@@ -25,6 +25,9 @@ void main(){
     await tester.tap(find.text('Lưu mật khẩu mới'));
     await tester.pump();
     expect(find.textContaining('nhập lại khớp'),findsOneWidget);
+    expect(find.byKey(const Key('hhk-toast-message')), findsOneWidget);
+    await tester.pump(const Duration(seconds: 5));
+    expect(find.byKey(const Key('hhk-toast-message')), findsNothing);
     await tester.enterText(find.byKey(const Key('change-confirm')),'new-secret-123');
     await tester.tap(find.text('Lưu mật khẩu mới'));
     await tester.pumpAndSettle();
