@@ -131,7 +131,11 @@ void main() {
       CreativeDrawingPage(store: store, profileId: 'child-1', grade: 3),
       scale: 1.2);
     expect(find.text('Vẽ & tô màu'), findsOneWidget);
-    await tester.drag(find.byType(AspectRatio).first, const Offset(46, 58));
+    final canvas = find.byType(AspectRatio).first;
+    await tester.ensureVisible(canvas);
+    await tester.pumpAndSettle();
+    // Horizontal stroke must be consumed by the canvas rather than the list.
+    await tester.dragFrom(tester.getCenter(canvas), const Offset(70, 2));
     await tester.pumpAndSettle();
     expect(store.values.keys.any((key) => key.startsWith('art:v1:child-1:3')),
         isTrue);
@@ -189,6 +193,14 @@ void main() {
     expect(find.text('Lá cây giúp quang hợp'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
+  });
+
+  testWidgets('avatar inventory fits compact iPhone when opened as a route',
+      (tester) async {
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
     final store = _Store();
     final ledger = StudyLedger(store);
     await ledger.initialize();
