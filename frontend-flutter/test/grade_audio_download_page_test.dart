@@ -48,6 +48,8 @@ void main() {
     expect(find.text('Đã lưu 0/700 đoạn'), findsOneWidget);
     expect(find.text('Tải toàn bộ âm thanh lớp 1'), findsOneWidget);
     expect(find.text('Tải âm thanh bài này'), findsNothing);
+    await tester.ensureVisible(find.text('Tải toàn bộ âm thanh lớp 1'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Tải toàn bộ âm thanh lớp 1'));
     // The license read is asynchronous; advance until its toast is shown,
     // without pumpAndSettle (which can expire the transient toast).
