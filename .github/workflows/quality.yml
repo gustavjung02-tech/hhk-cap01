@@ -35,6 +35,9 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm run check
       - run: npm test
+      - run: npm run build
+      - name: Check static admin output
+        run: test -s public/index.html && test -s public/app.js && test -s public/styles.css
       - name: Manual deploy only
         run: node -e "const c=require('./vercel.json'); if(c.git?.deploymentEnabled!==false) process.exit(1)"
 
