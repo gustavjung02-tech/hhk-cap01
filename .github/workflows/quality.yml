@@ -16,6 +16,10 @@ jobs:
       - run: node tooling/check-clean.mjs
       - run: node tooling/validate-export.mjs
       - run: node tooling/audit-questions.mjs
+      - name: Validate TTS manifest without claiming binary readiness
+        run: python3 tooling/check_tts_packs.py
+      - name: Check real TTS ZIP validator with synthetic safe/unsafe archives
+        run: python3 -m unittest discover -s tooling -p test_tts_packs.py
       - uses: actions/upload-artifact@v4
         with:
           name: hhk-question-audit
