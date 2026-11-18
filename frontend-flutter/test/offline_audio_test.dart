@@ -137,4 +137,101 @@ void main() {
     expect(await service.cached(1, 2), isNull);
     service.dispose();
   });
+  test('download all grade cards once; offline interruption resumes only missing',
+      () async {
+    // A reduced deterministic catalog exercises the same whole-grade path
+    // without making hundreds of mock requests in a CI unit test.
+    final catalog = OfflineAudioCatalog.fromJson({
+      'schema': 'hhk-audio-v1',
+      'contentVersion': audioContentVersion,
+      'grades': List.generate(5, (i) {
+        final ids = i == 0 ? [1, 4] : [100 + i, 100 + i];
+        return {
+          'grade': i + 1,
+          'ranges': [ids],
+          'assetCount': i == 0 ? 4 : 1,
+          'sizeBytes': 100,
+          'sha256': 'a' * 64,
+        };
+      }),
+    });
+    expect(catalog.gradeCardIds(1), [1, 2, 3, 4]);
+    final db = _Store();
+    final fetched = <int>[];
+    final audio = [0xff, 0xfb, 0x90, 0x64, 1, 2, 3, 4];
+    final firstAttempt = OfflineAudioStore(db, catalog,
+        origin: 'https://hhk.example.test',
+        client: MockClient((req) async {
+          final file = req.url.pathSegments.last;
+          final id = int.parse(file.split('-').last.split('.').first);
+          fetched.add(id);
+          if (id == 3) return http.Response('Network lost', 503);
+          return http.Response.bytes(audio, 200,
+              headers: {'content-type': 'audio/mpeg'});
+        }));
+    await expectLater(firstAttempt.downloadGrade(1, concurrency: 1),
+        throwsA(isA<AudioNotReady>()));
+    expect(fetched, [1, 2, 3]);
+    expect(await firstAttempt.cached(1, 1), isNotNull);
+    expect(await firstAttempt.cached(1, 2), isNotNull);
+    expect(await firstAttempt.cached(1, 3), isNull);
+    firstAttempt.dispose();
+
+    fetched.clear();
+    final progress = <int>[];
+    final resumed = OfflineAudioStore(db, catalog,
+        origin: 'https://hhk.example.test',
+        client: MockClient((req) async {
+          final file = req.url.pathSegments.last;
+          fetched.add(int.parse(file.split('-').last.split('.').first));
+          return http.Response.bytes(audio, 200,
+              headers: {'content-type': 'audio/mpeg'});
+        }));
+    expect(await resumed.downloadGrade(1, concurrency: 2,
+        onProgress: (count, _) => progress.add(count)), 4);
+    expect(fetched, unorderedEquals([3, 4]));
+    expect(progress.first, 2);
+    expect(progress.last, 4);
+    fetched.clear();
+    expect(await resumed.downloadGrade(1), 4);
+    expect(fetched, isEmpty);
+    expect(await resumed.downloadedCount(1, catalog.gradeCardIds(1)), 4);
+    resumed.dispose();
+  });
+
+  test('whole-grade stop is incremental and resumes without duplicate fetches',
+      () async {
+    final catalog = OfflineAudioCatalog.fromJson({
+      'schema': 'hhk-audio-v1',
+      'contentVersion': audioContentVersion,
+      'grades': List.generate(5, (i) => {
+        'grade': i + 1,
+        'ranges': i == 0 ? [[1, 5]] : [[100 + i, 100 + i]],
+        'assetCount': i == 0 ? 5 : 1,
+        'sizeBytes': 100,
+        'sha256': 'b' * 64,
+      }),
+    });
+    final store = _Store();
+    var requested = 0;
+    var stop = false;
+    final service = OfflineAudioStore(store, catalog,
+        origin: 'https://hhk.example.test',
+        client: MockClient((_) async {
+          requested++;
+          return http.Response.bytes([0xff, 0xfb, 0x90, 0x64, 4],
+              200, headers: {'content-type': 'audio/mpeg'});
+        }));
+    final saved = await service.downloadGrade(1, concurrency: 1,
+        isCancelled: () => stop,
+        onProgress: (count, _) {
+          if (count == 2) stop = true;
+        });
+    expect(saved, 2);
+    expect(requested, 2);
+    expect(await service.downloadGrade(1, concurrency: 2), 5);
+    expect(requested, 5);
+    service.dispose();
+  });
+
 }
