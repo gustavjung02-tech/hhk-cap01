@@ -10,6 +10,7 @@ import '../../data/offline_license.dart';
 import '../../data/study_ledger.dart';
 import '../account/hhk_toast.dart';
 import 'practice_page.dart';
+import 'grade_audio_download_page.dart';
 import 'quiz_evaluator.dart';
 
 class LessonPage extends StatefulWidget {
@@ -41,10 +42,8 @@ class _LessonPageState extends State<LessonPage> {
   StreamSubscription<void>? completeSubscription;
   List<int> playableIds = [];
   int cachedCount = 0;
-  int downloadProgress = 0;
-  int? playingId;
+   int? playingId;
   bool paused = false;
-  bool downloading = false;
   bool playingBusy = false;
 
   @override
@@ -90,43 +89,17 @@ class _LessonPageState extends State<LessonPage> {
     return allowed;
   }
 
-  Future<void> downloadAudio() async {
-    final service = audio;
-    if (service == null || downloading || playableIds.isEmpty ||
-        !await entitled()) {
-      return;
-    }
-    setState(() {
-      downloading = true;
-      downloadProgress = 0;
-    });
-    try {
-      await service.downloadLesson(widget.pack.grade, playableIds,
-        onProgress: (completed, total) {
-          if (mounted) {
-            setState(() => downloadProgress = completed);
-          }
-        });
-      if (!mounted) return;
-      final count = await service.downloadedCount(
-          widget.pack.grade, playableIds);
-      if (!mounted) return;
-      setState(() => cachedCount = count);
-      HhkToast.show(context,
-          'Đã tải âm thanh của bài vào thiết bị để nghe offline.',
-          kind: HhkToastKind.success);
-    } on AudioNotReady catch (e) {
-      if (mounted) {
-        HhkToast.show(context, e.message, kind: HhkToastKind.error);
-      }
-    } catch (_) {
-      if (mounted) {
-        HhkToast.show(context, 'Không thể tải âm thanh bài này.',
-            kind: HhkToastKind.error);
-      }
-    } finally {
-      if (mounted) setState(() => downloading = false);
-    }
+  Future<void> openGradeAudio() async {
+    if (widget.storage == null) return;
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => GradeAudioDownloadPage(
+        grade: widget.pack.grade,
+        storage: widget.storage!,
+        offlineLicense: widget.offlineLicense ?? OfflineLicenseManager()),
+    ));
+    if (!mounted || audio == null) return;
+    final count = await audio!.downloadedCount(widget.pack.grade, playableIds);
+    if (mounted) setState(() => cachedCount = count);
   }
 
   Future<void> togglePlayback(int cardId) async {
@@ -226,18 +199,13 @@ class _LessonPageState extends State<LessonPage> {
                   Text('🔊 Nghe bài học',
                       style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 5),
-                  Text('Đã lưu offline $cachedCount/${playableIds.length} thẻ. '
-                      'Tải một lần để nghe khi mất mạng.'),
+                  Text('Đã lưu $cachedCount/${playableIds.length} thẻ của bài. '
+                      'Chỉ cần tải trọn bộ lớp một lần để nghe offline.'),
                   const SizedBox(height: 8),
                   OutlinedButton.icon(
-                    onPressed: downloading ? null : downloadAudio,
-                    icon: Icon(downloading
-                        ? Icons.downloading : Icons.download_for_offline_outlined),
-                    label: Text(downloading
-                        ? 'Đang tải $downloadProgress/${playableIds.length}'
-                        : cachedCount == playableIds.length
-                            ? 'Đã tải âm thanh bài này'
-                            : 'Tải âm thanh bài này'),
+                    onPressed: openGradeAudio,
+                    icon: const Icon(Icons.download_for_offline_outlined),
+                    label: Text('Tải trọn bộ âm thanh lớp ${widget.pack.grade}'),
                   ),
                 ],
               ),

@@ -9,6 +9,7 @@ import 'data/offline_fun.dart';
 import 'features/creative_drawing_page.dart';
 import 'features/creative_learning_pages.dart';
 import 'features/study/lesson_page.dart';
+import 'features/study/grade_audio_download_page.dart';
 import 'features/native_ui.dart';
 import 'features/learning_entitlement_gate.dart';
 import 'features/offline_fun_pages.dart';
@@ -347,6 +348,29 @@ class _HomeScreenState extends State<HomeScreen> {
                     onSelected: (_) => _selectGrade(i))),
             ])),
           const SizedBox(height: 18),
+          NativePanel(
+            color: HhkNative.mint,
+            onTap: _openGradeAudio,
+            child: Row(children: [
+              const Icon(Icons.download_for_offline_outlined,
+                  size: 36, color: HhkNative.ink),
+              const SizedBox(width: 14),
+              Expanded(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Tải trọn bộ âm thanh lớp $grade',
+                    style: const TextStyle(fontSize: 15,
+                      fontWeight: FontWeight.w800, color: HhkNative.ink)),
+                  const SizedBox(height: 4),
+                  const Text('Chỉ tải một lần để nghe tất cả bài offline',
+                    style: TextStyle(fontSize: 12, color: HhkNative.muted)),
+                ],
+              )),
+              const Icon(Icons.chevron_right_rounded,
+                  color: HhkNative.ink),
+            ]),
+          ),
+          const SizedBox(height: 18),
           NativeHeading('Danh sách môn học',
             action: '${subjects.length} môn'),
           const SizedBox(height: 8),
@@ -613,6 +637,15 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     ));
     if (mounted) setState(_refreshProgress);
+  }
+
+  Future<void> _openGradeAudio() async {
+    if (!await _requireLearningAccess()) return;
+    if (!mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => GradeAudioDownloadPage(
+        grade: grade, storage: store, offlineLicense: offline),
+    ));
   }
 
   Future<void> _openLesson(GradePack pack,
