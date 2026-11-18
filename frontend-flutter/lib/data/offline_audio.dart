@@ -81,6 +81,19 @@ class OfflineAudioCatalog {
   bool hasCard(int grade, int cardId) =>
       grades[grade]?.contains(cardId) ?? false;
 
+  /// Cards in a grade with genuine source audio; 140 cards per grade have none.
+  List<int> gradeCardIds(int grade) {
+    final row = grades[grade];
+    if (row == null) return const [];
+    final ids = <int>[];
+    for (final range in row.ranges) {
+      for (var id = range.$1; id <= range.$2; id++) {
+        ids.add(id);
+      }
+    }
+    return ids..sort();
+  }
+
   List<int> cardsForLesson(GradePack pack, int lessonId) {
     if (pack.grade < 1 || pack.grade > 5) return [];
     return pack.cardsFor(lessonId)
@@ -213,6 +226,60 @@ class OfflineAudioStore {
       done++;
       onProgress?.call(done, cardIds.length);
     }
+  }
+
+  /// One-tap download for a whole grade. Uses up to four parallel,
+  /// bounded MP3 requests, saving each verified file immediately. Repeated
+  /// calls skip cached files: after disconnect/restart only missing cards
+  /// need fetching. A failure never discards files already stored.
+  Future<int> downloadGrade(int grade, {
+    void Function(int saved, int total)? onProgress,
+    bool Function()? isCancelled,
+    int concurrency = 4,
+  }) async {
+    final ids = catalog.gradeCardIds(grade);
+    if (ids.isEmpty) {
+      throw const AudioNotReady('Lớp này chưa có bộ âm thanh.');
+    }
+    if (concurrency < 1 || concurrency > 6) {
+      throw ArgumentError.value(concurrency, 'concurrency');
+    }
+    // Verify the local cache before scheduling network requests, so a
+    // previously interrupted transfer can be resumed safely.
+    final missing = <int>[];
+    for (final id in ids) {
+      if (await cached(grade, id) == null) missing.add(id);
+    }
+    var saved = ids.length - missing.length;
+    onProgress?.call(saved, ids.length);
+    if (missing.isEmpty) return saved;
+    var nextIndex = 0;
+    Object? firstError;
+    final workers = <Future<void>>[];
+    Future<void> worker() async {
+      while (firstError == null && !(isCancelled?.call() ?? false)) {
+        if (nextIndex >= missing.length) break;
+        final id = missing[nextIndex++];
+        try {
+          await obtain(grade, id);
+          saved++;
+          onProgress?.call(saved, ids.length);
+        } catch (e) {
+          firstError ??= e;
+        }
+      }
+    }
+    for (var i = 0; i < concurrency && i < missing.length; i++) {
+      workers.add(worker());
+    }
+    await Future.wait(workers);
+    if (firstError != null) {
+      if (firstError is AudioNotReady) {
+        throw firstError!;
+      }
+      throw const AudioNotReady('Tải âm thanh bị gián đoạn. Bấm tiếp tục để tải phần còn thiếu.');
+    }
+    return saved;
   }
 
   void dispose() {
