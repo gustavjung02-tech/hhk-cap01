@@ -14,9 +14,10 @@ class AudioGradeIndex {
   final int grade;
   final String archiveSha256;
   final int assetCount;
+  final int archiveBytes;
   final List<(int, int)> ranges;
   const AudioGradeIndex(this.grade, this.archiveSha256,
-      this.assetCount, this.ranges);
+      this.assetCount, this.ranges, this.archiveBytes);
 
   bool contains(int cardId) => ranges.any((r) =>
       cardId >= r.$1 && cardId <= r.$2);
@@ -58,12 +59,15 @@ class OfflineAudioCatalog {
         ranges.add((from, to));
       }
       final count = (row['assetCount'] as num).toInt();
+      final compressedBytes = (row['sizeBytes'] as num).toInt();
       final sha = row['sha256'].toString();
-      if (ids.length != count ||
+      if (compressedBytes < 1 || compressedBytes > 500000000 ||
+          ids.length != count ||
           !RegExp(r'^[a-f0-9]{64}$').hasMatch(sha)) {
         throw const FormatException('Unverified audio catalog');
       }
-      result[grade] = AudioGradeIndex(grade, sha, count, ranges);
+      result[grade] = AudioGradeIndex(grade, sha, count, ranges,
+          compressedBytes);
     }
     if (result.length != 5) {
       throw const FormatException('Audio catalog must cover grades 1–5');
