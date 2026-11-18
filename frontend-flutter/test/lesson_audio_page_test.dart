@@ -44,8 +44,8 @@ void main() {
       ledger: StudyLedger(store), profileId: 'child1', storage: store,
     )));
     await tester.pumpAndSettle();
-    expect(find.text('Tải âm thanh bài này'), findsOneWidget);
-    expect(find.text('Đã lưu offline 0/2 thẻ. Tải một lần để nghe khi mất mạng.'),
+    expect(find.text('Tải trọn bộ âm thanh lớp 1'), findsOneWidget);
+    expect(find.text('Đã lưu 0/2 thẻ của bài. Chỉ cần tải trọn bộ lớp một lần để nghe offline.'),
         findsOneWidget);
     expect(find.text('Nghe thẻ này'), findsNWidgets(2));
     await tester.scrollUntilVisible(
@@ -69,7 +69,7 @@ void main() {
       ledger: StudyLedger(_Store()), profileId: 'child1',
     )));
     await tester.pumpAndSettle();
-    expect(find.text('Tải âm thanh bài này'), findsNothing);
+    expect(find.text('Tải trọn bộ âm thanh lớp 2'), findsNothing);
     expect(find.text('Nghe thẻ này'), findsNothing);
     expect(tester.takeException(), isNull);
   });
