@@ -30,11 +30,11 @@ All original Drive ZIPs were downloaded via authorized connector, inspected, SHA
 ## Whole-grade download UX (19 November 2026 source update)
 - User request: do **not** make learners enter each lesson to download audio. On the **Bài học** curriculum tab, right below grade choice, show **Tải trọn bộ âm thanh lớp N**.
 - One button opens the grade download manager: **Tải toàn bộ âm thanh lớp N**, progress **Đã lưu x/y đoạn**, estimated download size, stop and **Tải tiếp phần còn thiếu**.
-- Existing recorded cards are reused across lessons and local profiles. Up to four simultaneous verified MP3 requests; every completed file is written to IndexedDB/SQLite immediately. If offline, browser closes or storage fills, files already saved remain and the next user-initiated download resumes only missing/corrupt records.
+- Existing recorded cards are reused across lessons and local profiles. One verified grade ZIP is downloaded in a single HTTPS request, then its MP3 tracks are persisted to IndexedDB/SQLite. Already stored MP3s survive interrupted extraction; a new attempt must fetch the ZIP again if the archive was not fully processed.
 - Lesson pages now link to **whole-grade download** rather than showing a repeated **Tải âm thanh bài này** action on every lesson. **Nghe thẻ này** still plays the chosen card, including an individual network fetch if that audio has not yet been cached.
 - The bulk download still checks a signed grade lease before starting; missing/unlicensed grades never unlock audio. The 140 cards per grade without MP3 remain excluded.
-- Bulk download currently uses bounded concurrent per-card requests to already verified same-origin assets; it is **one user action**, not a single ZIP network transfer. Do not promise instant downloads. The reported source archive size is an approximate network budget; local base64/IndexedDB storage may be larger.
-- Tests: grade download retry after failed response; stop+resume; no duplicate fetch for verified cached files; grade-download phone UI; entitlement gate; regression ensuring per-lesson download action was removed.
+- Bulk download fetches exactly one original, SHA-verified grade ZIP per attempt from same-origin static assets; it is **one user action and one network transfer**. Do not promise instant downloads. The reported source archive size is an approximate network budget; local base64/IndexedDB storage may be larger.
+- Tests: one ZIP request per grade; SHA256 integrity failure; cancelled extraction and recovery; no requests when all files are cached; grade-download phone UI; entitlement gate; regression ensuring per-lesson download action was removed.
 - Physical iPhone/Android offline audio and storage-quota QA remain open and require owner/device testing.
 
 ## Whole-grade ZIP delivery (19 November 2026)

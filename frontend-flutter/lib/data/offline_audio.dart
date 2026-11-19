@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -332,7 +331,7 @@ class OfflineAudioStore {
     final expected = ids.toSet();
     final tracks = <int, ArchiveFile>{};
     final mp3Name = RegExp(
-        r'^audio/tts/assets/vi-v1/lesson-card-([1-9][0-9]*)\\.mp3$');
+        r'^audio/tts/assets/vi-v1/lesson-card-([1-9][0-9]*)\.mp3$');
     for (final file in archive) {
       final name = file.name.replaceAll(String.fromCharCode(92), '/');
       if (file.isSymbolicLink || name.startsWith('/') ||
