@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -137,101 +139,102 @@ void main() {
     expect(await service.cached(1, 2), isNull);
     service.dispose();
   });
-  test('download all grade cards once; offline interruption resumes only missing',
+  test('whole-grade download uses one SHA-verified ZIP and works offline',
       () async {
-    // A reduced deterministic catalog exercises the same whole-grade path
-    // without making hundreds of mock requests in a CI unit test.
-    final catalog = OfflineAudioCatalog.fromJson({
-      'schema': 'hhk-audio-v1',
-      'contentVersion': audioContentVersion,
-      'grades': List.generate(5, (i) {
-        final ids = i == 0 ? [1, 4] : [100 + i, 100 + i];
-        return {
-          'grade': i + 1,
-          'ranges': [ids],
-          'assetCount': i == 0 ? 4 : 1,
-          'sizeBytes': 100,
-          'sha256': 'a' * 64,
-        };
-      }),
-    });
-    expect(catalog.gradeCardIds(1), [1, 2, 3, 4]);
-    final db = _Store();
-    final fetched = <int>[];
-    final audio = [0xff, 0xfb, 0x90, 0x64, 1, 2, 3, 4];
-    final firstAttempt = OfflineAudioStore(db, catalog,
-        origin: 'https://hhk.example.test',
-        client: MockClient((req) async {
-          final file = req.url.pathSegments.last;
-          final id = int.parse(file.split('-').last.split('.').first);
-          fetched.add(id);
-          if (id == 3) return http.Response('Network lost', 503);
-          return http.Response.bytes(audio, 200,
-              headers: {'content-type': 'audio/mpeg'});
-        }));
-    await expectLater(firstAttempt.downloadGrade(1, concurrency: 1),
-        throwsA(isA<AudioNotReady>()));
-    expect(fetched, [1, 2, 3]);
-    expect(await firstAttempt.cached(1, 1), isNotNull);
-    expect(await firstAttempt.cached(1, 2), isNotNull);
-    expect(await firstAttempt.cached(1, 3), isNull);
-    firstAttempt.dispose();
-
-    fetched.clear();
-    final progress = <int>[];
-    final resumed = OfflineAudioStore(db, catalog,
-        origin: 'https://hhk.example.test',
-        client: MockClient((req) async {
-          final file = req.url.pathSegments.last;
-          fetched.add(int.parse(file.split('-').last.split('.').first));
-          return http.Response.bytes(audio, 200,
-              headers: {'content-type': 'audio/mpeg'});
-        }));
-    expect(await resumed.downloadGrade(1, concurrency: 2,
-        onProgress: (count, _) => progress.add(count)), 4);
-    expect(fetched, unorderedEquals([3, 4]));
-    expect(progress.first, 2);
-    expect(progress.last, 4);
-    fetched.clear();
-    expect(await resumed.downloadGrade(1), 4);
-    expect(fetched, isEmpty);
-    expect(await resumed.downloadedCount(1, catalog.gradeCardIds(1)), 4);
-    resumed.dispose();
-  });
-
-  test('whole-grade stop is incremental and resumes without duplicate fetches',
-      () async {
-    final catalog = OfflineAudioCatalog.fromJson({
-      'schema': 'hhk-audio-v1',
-      'contentVersion': audioContentVersion,
+    const path = 'audio/tts/assets/vi-v1/';
+    final sound = Uint8List.fromList([0xff, 0xfb, 0x90, 0x64, 1, 2, 3, 4]);
+    final zip = ZipEncoder().encodeBytes(Archive()
+      ..addFile(ArchiveFile.bytes('${path}lesson-card-1.mp3', sound))
+      ..addFile(ArchiveFile.bytes('${path}lesson-card-2.mp3', sound)));
+    final digest = (await Sha256().hash(zip)).bytes
+        .map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    OfflineAudioCatalog catalogFor(String sha) => OfflineAudioCatalog.fromJson({
+      'schema': 'hhk-audio-v1', 'contentVersion': audioContentVersion,
       'grades': List.generate(5, (i) => {
         'grade': i + 1,
-        'ranges': i == 0 ? [[1, 5]] : [[100 + i, 100 + i]],
-        'assetCount': i == 0 ? 5 : 1,
-        'sizeBytes': 100,
-        'sha256': 'b' * 64,
+        'ranges': i == 0 ? [[1, 2]] : [[100 + i, 100 + i]],
+        'assetCount': i == 0 ? 2 : 1,
+        'sizeBytes': i == 0 ? zip.length : 100,
+        'sha256': i == 0 ? sha : 'a' * 64,
       }),
     });
-    final store = _Store();
-    var requested = 0;
+    final db = _Store();
+    var requests = 0;
+    final store = OfflineAudioStore(db, catalogFor(digest),
+      origin: 'https://hhk.example.test',
+      client: MockClient((req) async {
+        requests++;
+        expect(req.url.path,
+          '/audio/tts/2026-04-27-v1/packs/vi-v1-grade-1-2026-04-27-v1.zip');
+        return http.Response.bytes(zip, 200,
+          headers: {'content-type': 'application/zip'});
+      }));
+    final bytesProgress = <int>[];
+    final savedProgress = <int>[];
+    expect(await store.downloadGrade(1,
+      onBytes: (n, _) => bytesProgress.add(n),
+      onProgress: (n, _) => savedProgress.add(n)), 2);
+    expect(requests, 1);
+    expect(bytesProgress.last, zip.length);
+    expect(savedProgress, [0, 1, 2]);
+    expect(await store.cached(1, 1), sound);
+    expect(await store.cached(1, 2), sound);
+    store.dispose();
+    final offline = OfflineAudioStore(db, catalogFor(digest),
+      origin: 'https://hhk.example.test',
+      client: MockClient((_) async => throw StateError('airplane mode')));
+    expect(await offline.downloadGrade(1), 2);
+    expect(await offline.obtain(1, 2), sound);
+    offline.dispose();
+
+    final rejected = OfflineAudioStore(_Store(), catalogFor('0' * 64),
+      origin: 'https://hhk.example.test',
+      client: MockClient((_) async => http.Response.bytes(zip, 200,
+        headers: {'content-type': 'application/zip'})));
+    await expectLater(rejected.downloadGrade(1),
+      throwsA(isA<AudioNotReady>()));
+    rejected.dispose();
+  });
+
+  test('cancelling after ZIP transfer saves no further audio and keeps earlier files',
+      () async {
+    final sound = Uint8List.fromList([0xff, 0xfb, 0x90, 0x64, 4]);
+    final zip = ZipEncoder().encodeBytes(Archive()
+      ..addFile(ArchiveFile.bytes(
+        'audio/tts/assets/vi-v1/lesson-card-1.mp3', sound))
+      ..addFile(ArchiveFile.bytes(
+        'audio/tts/assets/vi-v1/lesson-card-2.mp3', sound)));
+    final digest = (await Sha256().hash(zip)).bytes
+      .map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    final catalog = OfflineAudioCatalog.fromJson({
+      'schema': 'hhk-audio-v1', 'contentVersion': audioContentVersion,
+      'grades': List.generate(5, (i) => {
+        'grade': i + 1,
+        'ranges': i == 0 ? [[1, 2]] : [[100 + i, 100 + i]],
+        'assetCount': i == 0 ? 2 : 1,
+        'sizeBytes': i == 0 ? zip.length : 100,
+        'sha256': i == 0 ? digest : 'b' * 64,
+      }),
+    });
+    final db = _Store();
     var stop = false;
-    final service = OfflineAudioStore(store, catalog,
-        origin: 'https://hhk.example.test',
-        client: MockClient((_) async {
-          requested++;
-          return http.Response.bytes([0xff, 0xfb, 0x90, 0x64, 4],
-              200, headers: {'content-type': 'audio/mpeg'});
-        }));
-    final saved = await service.downloadGrade(1, concurrency: 1,
-        isCancelled: () => stop,
-        onProgress: (count, _) {
-          if (count == 2) stop = true;
-        });
-    expect(saved, 2);
-    expect(requested, 2);
-    expect(await service.downloadGrade(1, concurrency: 2), 5);
-    expect(requested, 5);
-    service.dispose();
+    var requests = 0;
+    final store = OfflineAudioStore(db, catalog,
+      origin: 'https://hhk.example.test',
+      client: MockClient((_) async {
+        requests++;
+        return http.Response.bytes(zip, 200,
+          headers: {'content-type': 'application/zip'});
+      }));
+    expect(await store.downloadGrade(1,
+      isCancelled: () => stop,
+      onProgress: (saved, _) { if (saved == 1) stop = true; }), 1);
+    expect(await store.cached(1, 1), sound);
+    expect(await store.cached(1, 2), isNull);
+    stop = false;
+    expect(await store.downloadGrade(1), 2);
+    expect(requests, 2); // A cancelled extraction re-fetches one ZIP, not every MP3.
+    store.dispose();
   });
 
 }

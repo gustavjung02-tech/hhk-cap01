@@ -31,6 +31,7 @@ class _GradeAudioDownloadPageState extends State<GradeAudioDownloadPage> {
   Future<int>? _activeDownload;
   String? _loadError;
   int _cached = 0;
+  int _receivedBytes = 0;
   bool _loading = true;
   bool _downloading = false;
   bool _cancel = false;
@@ -88,11 +89,15 @@ class _GradeAudioDownloadPageState extends State<GradeAudioDownloadPage> {
     }
     setState(() {
       _cancel = false;
+      _receivedBytes = 0;
       _downloading = true;
     });
     final service = _store!;
     final running = service.downloadGrade(widget.grade,
         isCancelled: () => _cancel || !mounted,
+        onBytes: (received, total) {
+          if (mounted) setState(() => _receivedBytes = received);
+        },
         onProgress: (saved, total) {
           if (mounted) setState(() => _cached = saved);
         });
@@ -153,9 +158,8 @@ class _GradeAudioDownloadPageState extends State<GradeAudioDownloadPage> {
           Text('Tải một lần, nghe cả lớp',
               style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 10),
-          const Text('Không cần vào từng bài để tải. '
-              'Tất cả âm thanh của lớp được lưu trên máy. '
-              'Lần sau chỉ tải tiếp phần còn thiếu.'),
+          const Text('Tải một tệp ZIP cho cả lớp rồi lưu các bản thu trên máy. '
+              'Không cần tải riêng từng bài học.'),
           const SizedBox(height: 22),
           if (_loading)
             const Center(child: CircularProgressIndicator())
@@ -172,11 +176,16 @@ class _GradeAudioDownloadPageState extends State<GradeAudioDownloadPage> {
                     Text('Lớp ${widget.grade} • $total đoạn có thu âm',
                         style: Theme.of(context).textTheme.titleMedium),
                     const SizedBox(height: 10),
-                    Text('Đã lưu $_cached/$total đoạn',
+                    Text(_downloading && _receivedBytes < _index!.archiveBytes
+                        ? 'Đang tải gói ZIP: ${(_receivedBytes / (1024 * 1024)).toStringAsFixed(1)} / $size MB'
+                        : 'Đã lưu $_cached/$total đoạn',
                         key: const Key('grade-audio-progress')),
+                    if (_downloading && _receivedBytes >= _index!.archiveBytes)
+                      const Text('Đã nhận gói ZIP. Đang lưu các bản thu...'),
                     const SizedBox(height: 9),
                     LinearProgressIndicator(
-                      value: percent,
+                      value: _downloading && _receivedBytes < _index!.archiveBytes
+                          ? _receivedBytes / _index!.archiveBytes : percent,
                       minHeight: 7,
                       borderRadius: BorderRadius.circular(7),
                     ),

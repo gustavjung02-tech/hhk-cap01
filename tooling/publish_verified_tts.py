@@ -9,6 +9,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import shutil
 import sys
 from zipfile import ZipFile, BadZipFile
 
@@ -97,7 +98,11 @@ def publish_grade(archive_path, row, ids, out_root, *, dry_run=False):
     validate_source(archive_path, row, ids)
     if dry_run:
         return len(ids)
-    dest = out_root / "audio" / "tts" / "2026-04-27-v1" / f"grade-{row['grade']}"
+    root = out_root / "audio" / "tts" / "2026-04-27-v1"
+    packs = root / "packs"
+    packs.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(archive_path, packs / row["fileName"])
+    dest = root / f"grade-{row['grade']}"
     dest.mkdir(parents=True, exist_ok=True)
     with ZipFile(archive_path) as archive:
         names = {

@@ -71,7 +71,7 @@ try {
     '--source-dir', temp,
     '--output-dir', 'dist'
   ], {stdio:'inherit'});
-  console.log('HHK offline audio prepared: 4200 immutable MP3 files, grades 1-5.');
+  console.log('HHK offline audio prepared: 5 verified grade ZIPs + 4200 MP3 files.');
 } finally {
   rmSync(temp, {recursive:true, force:true});
 }

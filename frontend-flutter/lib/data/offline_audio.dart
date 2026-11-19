@@ -1,4 +1,7 @@
 import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:archive/archive.dart';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
@@ -150,6 +153,46 @@ class OfflineAudioStore {
         '/audio/tts/$audioContentVersion/grade-$grade/lesson-card-$cardId.mp3');
   }
 
+  /// A whole grade is delivered as one immutable, SHA-verified ZIP.
+  Uri gradeArchiveUri(int grade) {
+    if (!catalog.grades.containsKey(grade)) {
+      throw const AudioNotReady('Lớp này chưa có bộ âm thanh.');
+    }
+    if (assetOrigin.scheme != 'https' &&
+        assetOrigin.host != 'localhost' &&
+        assetOrigin.host != '127.0.0.1') {
+      throw const AudioNotReady('Nguồn âm thanh không an toàn.');
+    }
+    return assetOrigin.resolve(
+        '/audio/tts/$audioContentVersion/packs/vi-v1-grade-$grade-$audioContentVersion.zip');
+  }
+
+  static bool _isMp3(Uint8List bytes) => bytes.length >= 3 &&
+      ((bytes[0] == 0x49 && bytes[1] == 0x44 && bytes[2] == 0x33) ||
+       (bytes[0] == 0xff && bytes[1] & 0xe0 == 0xe0));
+
+  Future<String> _sha256(Uint8List bytes) async {
+    final hash = await Sha256().hash(bytes);
+    return hash.bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+  }
+
+  Future<void> _saveAudio(int grade, int cardId, Uint8List bytes) async {
+    if (!catalog.hasCard(grade, cardId) || bytes.length > maxFileBytes ||
+        !_isMp3(bytes)) {
+      throw const AudioNotReady('Dữ liệu âm thanh sai định dạng MP3.');
+    }
+    final digest = await _sha256(bytes);
+    try {
+      await localStore.write(_key(grade, cardId), jsonEncode({
+        'version': audioContentVersion, 'grade': grade, 'cardId': cardId,
+        'sha256': digest, 'audio': base64Encode(bytes),
+      }));
+    } catch (_) {
+      throw const AudioNotReady(
+          'Bộ nhớ thiết bị không đủ để lưu âm thanh offline.');
+    }
+  }
+
   Future<Uint8List?> cached(int grade, int cardId) async {
     if (!catalog.hasCard(grade, cardId)) return null;
     final raw = await localStore.read(_key(grade, cardId));
@@ -195,22 +238,7 @@ class OfflineAudioStore {
       throw const AudioNotReady('File âm thanh không có hoặc không hợp lệ.');
     }
     final bytes = response.bodyBytes;
-    if (!(bytes.length >= 3 &&
-        (bytes[0] == 0x49 && bytes[1] == 0x44 && bytes[2] == 0x33 ||
-         bytes[0] == 0xff && bytes[1] & 0xe0 == 0xe0))) {
-      throw const AudioNotReady('Dữ liệu âm thanh sai định dạng MP3.');
-    }
-    final hash = await Sha256().hash(bytes);
-    final digest = hash.bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
-    try {
-      await localStore.write(_key(grade, cardId), jsonEncode({
-        'version': audioContentVersion, 'grade': grade, 'cardId': cardId,
-        'sha256': digest, 'audio': base64Encode(bytes),
-      }));
-    } catch (_) {
-      throw const AudioNotReady(
-          'Bộ nhớ thiết bị không đủ để lưu âm thanh offline.');
-    }
+    await _saveAudio(grade, cardId, bytes);
     return Uint8List.fromList(bytes);
   }
 
@@ -232,56 +260,109 @@ class OfflineAudioStore {
     }
   }
 
-  /// One-tap download for a whole grade. Uses up to four parallel,
-  /// bounded MP3 requests, saving each verified file immediately. Repeated
-  /// calls skip cached files: after disconnect/restart only missing cards
-  /// need fetching. A failure never discards files already stored.
+  /// Exactly one archive request per grade. SHA256 of the *original* ZIP
+  /// is checked before reading or saving any track. Already-cached tracks
+  /// are left intact, including after a cancelled or interrupted extraction.
   Future<int> downloadGrade(int grade, {
     void Function(int saved, int total)? onProgress,
+    void Function(int received, int total)? onBytes,
     bool Function()? isCancelled,
-    int concurrency = 4,
   }) async {
+    final index = catalog.grades[grade];
     final ids = catalog.gradeCardIds(grade);
-    if (ids.isEmpty) {
+    if (index == null || ids.isEmpty) {
       throw const AudioNotReady('Lớp này chưa có bộ âm thanh.');
     }
-    if (concurrency < 1 || concurrency > 6) {
-      throw ArgumentError.value(concurrency, 'concurrency');
-    }
-    // Verify the local cache before scheduling network requests, so a
-    // previously interrupted transfer can be resumed safely.
     final missing = <int>[];
     for (final id in ids) {
       if (await cached(grade, id) == null) missing.add(id);
     }
     var saved = ids.length - missing.length;
     onProgress?.call(saved, ids.length);
-    if (missing.isEmpty) return saved;
-    var nextIndex = 0;
-    Object? firstError;
-    final workers = <Future<void>>[];
-    Future<void> worker() async {
-      while (firstError == null && !(isCancelled?.call() ?? false)) {
-        if (nextIndex >= missing.length) break;
-        final id = missing[nextIndex++];
-        try {
-          await obtain(grade, id);
-          saved++;
-          onProgress?.call(saved, ids.length);
-        } catch (e) {
-          firstError ??= e;
+    if (missing.isEmpty || (isCancelled?.call() ?? false)) return saved;
+
+    late final http.StreamedResponse response;
+    try {
+      response = await client.send(http.Request('GET', gradeArchiveUri(grade)))
+          .timeout(const Duration(seconds: 20));
+    } catch (_) {
+      throw const AudioNotReady('Không tải được gói âm thanh lớp. Hãy thử lại khi có mạng.');
+    }
+    final mime = (response.headers['content-type'] ?? '').toLowerCase();
+    if (response.statusCode != 200 ||
+        !(mime.contains('application/zip') ||
+          mime.contains('application/x-zip-compressed') ||
+          mime.contains('application/octet-stream')) ||
+        (response.contentLength != null &&
+          response.contentLength != index.archiveBytes)) {
+      throw const AudioNotReady('Gói âm thanh lớp chưa có hoặc không hợp lệ.');
+    }
+    final buffer = BytesBuilder(copy: false);
+    try {
+      await for (final chunk in response.stream.timeout(
+          const Duration(seconds: 30))) {
+        if (isCancelled?.call() ?? false) return saved;
+        buffer.add(chunk);
+        if (buffer.length > index.archiveBytes) {
+          throw const AudioNotReady('Gói âm thanh vượt dung lượng xác minh.');
         }
+        onBytes?.call(buffer.length, index.archiveBytes);
       }
+    } on AudioNotReady {
+      rethrow;
+    } catch (_) {
+      throw const AudioNotReady('Tải gói âm thanh bị gián đoạn. Hãy thử lại.');
     }
-    for (var i = 0; i < concurrency && i < missing.length; i++) {
-      workers.add(worker());
+    if (buffer.length != index.archiveBytes) {
+      throw const AudioNotReady('Gói âm thanh tải chưa đủ dung lượng.');
     }
-    await Future.wait(workers);
-    if (firstError != null) {
-      if (firstError is AudioNotReady) {
-        throw firstError!;
+    final zip = buffer.takeBytes();
+    if (await _sha256(zip) != index.archiveSha256) {
+      throw const AudioNotReady('Gói âm thanh sai checksum, không lưu dữ liệu.');
+    }
+
+    // The signed release publisher checks this same source ZIP's internal
+    // manifest and paths. Re-check the actual entries on every device.
+    late final Archive archive;
+    try {
+      archive = ZipDecoder().decodeBytes(zip, verify: true);
+    } catch (_) {
+      throw const AudioNotReady('Không giải nén được gói âm thanh đã tải.');
+    }
+    final expected = ids.toSet();
+    final tracks = <int, ArchiveFile>{};
+    final mp3Name = RegExp(
+        r'^audio/tts/assets/vi-v1/lesson-card-([1-9][0-9]*)\\.mp3$');
+    for (final file in archive) {
+      final name = file.name.replaceAll(String.fromCharCode(92), '/');
+      if (file.isSymbolicLink || name.startsWith('/') ||
+          name == '..' || name.contains('../') || name.contains('/..')) {
+        throw const AudioNotReady('Gói âm thanh chứa đường dẫn không hợp lệ.');
       }
-      throw const AudioNotReady('Tải âm thanh bị gián đoạn. Bấm tiếp tục để tải phần còn thiếu.');
+      if (!file.isFile) continue;
+      final match = mp3Name.firstMatch(name);
+      if (match == null) continue;
+      final id = int.parse(match.group(1)!);
+      if (!expected.contains(id) || tracks.containsKey(id) ||
+          file.size < 1 || file.size > maxFileBytes) {
+        throw const AudioNotReady('Gói âm thanh không khớp dữ liệu lớp.');
+      }
+      tracks[id] = file;
+    }
+    if (tracks.length != expected.length) {
+      throw const AudioNotReady('Gói âm thanh thiếu bản thu của lớp.');
+    }
+    for (final id in missing) {
+      if (isCancelled?.call() ?? false) break;
+      final file = tracks[id]!;
+      final bytes = file.readBytes();
+      if (bytes == null) {
+        throw const AudioNotReady('Không đọc được bản thu trong gói.');
+      }
+      await _saveAudio(grade, id, bytes);
+      file.clear();
+      saved++;
+      onProgress?.call(saved, ids.length);
     }
     return saved;
   }

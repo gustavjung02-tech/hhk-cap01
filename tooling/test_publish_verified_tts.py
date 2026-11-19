@@ -54,6 +54,8 @@ class PublishAudioTest(unittest.TestCase):
                 directory / "dist"), 1)
             published = directory / "dist/audio/tts/2026-04-27-v1/grade-1/lesson-card-42.mp3"
             self.assertEqual(published.read_bytes(), track)
+            bundle = directory / "dist/audio/tts/2026-04-27-v1/packs/grade-1.zip"
+            self.assertEqual(bundle.read_bytes(), raw)
             row["sha256"] = "0" * 64
             with self.assertRaisesRegex(ValueError, "SHA-256"):
                 validate_source(target, row, {42})

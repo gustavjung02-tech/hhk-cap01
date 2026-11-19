@@ -36,3 +36,9 @@ All original Drive ZIPs were downloaded via authorized connector, inspected, SHA
 - Bulk download currently uses bounded concurrent per-card requests to already verified same-origin assets; it is **one user action**, not a single ZIP network transfer. Do not promise instant downloads. The reported source archive size is an approximate network budget; local base64/IndexedDB storage may be larger.
 - Tests: grade download retry after failed response; stop+resume; no duplicate fetch for verified cached files; grade-download phone UI; entitlement gate; regression ensuring per-lesson download action was removed.
 - Physical iPhone/Android offline audio and storage-quota QA remain open and require owner/device testing.
+
+## Whole-grade ZIP delivery (19 November 2026)
+- **Exactly one HTTPS ZIP request per grade** for user-initiated bulk downloads. Source: the verified original Drive ZIP, copied byte-for-byte to `/audio/tts/2026-04-27-v1/packs/vi-v1-grade-N-2026-04-27-v1.zip` in each manual PWA release.
+- The client checks the ZIP byte size and catalog SHA256 before decoding, validates CRC and every expected MP3 ID and framing, then stores tracks locally to IndexedDB/SQLite. **No 700–980 individual HTTP requests** during bulk download. A single-card on-demand play may still fetch one source MP3 if it was not included in a completed download.
+- Partial extraction saves already-stored tracks; interrupted ZIP transfers require re-downloading the ZIP, not HTTP-range resume. No claim of byte-range resume or verified iPhone storage durability is made. The UI reports ZIP transfer progress separately from local saving.
+- Release gate: do not deploy the new client without publishing all 5 verified ZIPs alongside the 4200 per-card static MP3s; verify ZIP URLs respond as ZIP (not the SPA HTML fallback) and match catalog checksums.
