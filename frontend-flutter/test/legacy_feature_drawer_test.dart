@@ -19,6 +19,7 @@ void main() {
       expect(entries.where((e) => e.id == id).single.available, isTrue);
     }
     expect(entries.where((e) => e.id == 'review').single.available, isTrue);
+    expect(entries.where((e) => e.id == 'audio').single.available, isTrue);
   });
 
   testWidgets('the drawer opens a real migrated feature', (tester) async {

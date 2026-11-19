@@ -55,7 +55,7 @@ const legacyMenuGroups = <LegacyMenuGroup>[
         Icons.family_restroom, available: true),
     LegacyMenuItem('tts', 'Giọng đọc', Icons.record_voice_over_outlined),
     LegacyMenuItem('audio', 'Audio offline',
-        Icons.download_outlined),
+        Icons.download_outlined, available: true),
     LegacyMenuItem('offline', 'Ngoại tuyến & cập nhật',
         Icons.offline_bolt_outlined),
     LegacyMenuItem('theme', 'Giao diện', Icons.palette_outlined),

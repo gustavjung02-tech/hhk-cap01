@@ -480,7 +480,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _openLegacyFeature(LegacyMenuItem feature) async {
-    if (!{'account', 'profiles', 'parent', 'daily', 'games'}.contains(feature.id) &&
+    if (!{'account', 'profiles', 'parent', 'daily', 'games', 'audio'}.contains(feature.id) &&
         !await _requireLearningAccess()) {
       return;
     }
@@ -489,6 +489,9 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'lessons':
       case 'curriculum':
         setState(() => tab = 1);
+        return;
+      case 'audio':
+        await _openGradeAudio();
         return;
       case 'account':
         _openAccount();
